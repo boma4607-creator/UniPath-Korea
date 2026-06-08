@@ -241,6 +241,20 @@ div[data-testid="stTabs"] button {
 /* HIDE STREAMLIT DEFAULT ELEMENTS */
 #MainMenu, footer, header { visibility: hidden; }
 [data-testid="stDecoration"] { display: none; }
+
+/* FIX TEXT VISIBILITY */
+p, span, div, li, td, th { color: #1E293B; }
+.g-card p { color: #475569 !important; }
+.g-card h3 { color: #0D3B8E !important; }
+.sec-title { color: #0D3B8E !important; }
+.sec-sub { color: #475569 !important; }
+.kpi-val { color: #0D3B8E !important; }
+.kpi-lab { color: #64748B !important; }
+[data-testid="stMarkdownContainer"] p { color: #1E293B !important; }
+[data-testid="stMarkdownContainer"] li { color: #475569 !important; }
+.stTabs [data-baseweb="tab"] { color: #475569 !important; font-weight: 600 !important; }
+.stTabs [aria-selected="true"] { color: #0D3B8E !important; }
+label { color: #374151 !important; font-weight: 500 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -267,7 +281,7 @@ TR = {
         "success": "✅ Success!", "error": "Error occurred", "warning": "Warning", "info": "Information",
         "plan_title": "Plan Your Journey", "plan_1": "Choose University", "plan_2": "Prepare TOPIK",
         "plan_3": "Apply for Visa", "plan_4": "Start Life in Korea",
-        "ai_counselor": "AI Counselor", "new_badge": "NEW", "hot_badge": "HOT",
+        "ai_counselor": "AI Counselor", "new_badge": "NEW", "hot_badge": "HOT", "uni_sub": "Find the right university for your future in Korea", "career_sub": "Build your career in Korea with AI tools", "job_sub": "Find your perfect job in Korea", "topik_sub": "Korean language proficiency test guide", "visa_sub": "Visa guide for international students", "search_placeholder": "Search university name...", "region": "Region", "gks_support": "GKS Support", "all": "All", "register_title": "Create Account", "login_title": "Sign In", "name_label": "Full Name", "email_reg": "Email", "password_reg": "Password", "confirm_password": "Confirm Password", "register_btn": "Create Account", "login_btn": "Sign In", "already_have": "Already have account?", "no_account": "No account?", "logout_btn": "Sign Out", "my_profile": "My Profile", "saved_unis": "Saved Universities", "saved_jobs": "Saved Jobs", "notif_settings": "Notification Settings", "notif_topik": "TOPIK Schedule Alerts", "notif_visa": "Visa Updates", "notif_jobs": "New Job Openings", "notif_news": "University News", "notif_lang": "Receive alerts in your language",
     },
     "🇰🇷 한국어": {
         "home": "홈", "university": "대학교", "career": "커리어", "job": "취업", "topik": "TOPIK", "visa": "비자",
@@ -288,7 +302,7 @@ TR = {
         "success": "✅ 성공!", "error": "오류 발생", "warning": "주의", "info": "안내",
         "plan_title": "유학 여정 계획", "plan_1": "대학교 선택", "plan_2": "TOPIK 준비",
         "plan_3": "비자 신청", "plan_4": "한국 생활 시작",
-        "ai_counselor": "AI 상담사", "new_badge": "NEW", "hot_badge": "인기",
+        "ai_counselor": "AI 상담사", "new_badge": "NEW", "hot_badge": "인기", "uni_sub": "한국 유학을 위한 최적의 대학교를 찾아보세요", "career_sub": "AI 도구로 한국 커리어를 쌓아보세요", "job_sub": "나에게 맞는 일자리를 찾아보세요", "topik_sub": "한국어능력시험 완벽 가이드", "visa_sub": "외국인 유학생 및 취업자를 위한 비자 안내", "search_placeholder": "대학교 이름 검색...", "region": "지역", "gks_support": "GKS 지원", "all": "전체", "register_title": "회원가입", "login_title": "로그인", "name_label": "이름", "email_reg": "이메일", "password_reg": "비밀번호", "confirm_password": "비밀번호 확인", "register_btn": "가입하기", "login_btn": "로그인", "already_have": "이미 계정이 있으신가요?", "no_account": "계정이 없으신가요?", "logout_btn": "로그아웃", "my_profile": "내 프로필", "saved_unis": "저장된 대학교", "saved_jobs": "저장된 채용공고", "notif_settings": "알림 설정", "notif_topik": "TOPIK 일정 알림", "notif_visa": "비자 업데이트", "notif_jobs": "새 채용공고", "notif_news": "대학 뉴스", "notif_lang": "모국어로 알림 받기",
     },
     "🇲🇳 Монгол": {
         "home": "НҮҮР", "university": "ИХ СУРГУУЛЬ", "career": "КАРЬЕР", "job": "АЖИЛ", "topik": "TOPIK", "visa": "ВИЗ",
@@ -309,7 +323,7 @@ TR = {
         "success": "✅ Амжилттай!", "error": "Алдаа гарлаа", "warning": "Анхаар", "info": "Мэдээлэл",
         "plan_title": "Аяллын төлөвлөгөө", "plan_1": "Сургууль сонгох", "plan_2": "TOPIK бэлдэх",
         "plan_3": "Виз авах", "plan_4": "Солонгост амьдрах",
-        "ai_counselor": "AI Зөвлөх", "new_badge": "ШИНЭ", "hot_badge": "ТОП",
+        "ai_counselor": "AI Зөвлөх", "new_badge": "ШИНЭ", "hot_badge": "ТОП", "uni_sub": "БНСУ-д суралцах тохирох их сургуулиа олоорой", "career_sub": "AI хэрэгслээр карьераа хөгжүүл", "job_sub": "Тохирох ажлын байраа ол", "topik_sub": "TOPIK шалгалтын бүрэн гарын авлага", "visa_sub": "Гадаадын оюутан, ажилчдын визний мэдээлэл", "search_placeholder": "Сургуулийн нэр хайх...", "region": "Бүс нутаг", "gks_support": "GKS тэтгэлэг", "all": "Бүгд", "register_title": "Бүртгүүлэх", "login_title": "Нэвтрэх", "name_label": "Бүтэн нэр", "email_reg": "И-мэйл", "password_reg": "Нууц үг", "confirm_password": "Нууц үг давтах", "register_btn": "Бүртгүүлэх", "login_btn": "Нэвтрэх", "already_have": "Бүртгэлтэй юу?", "no_account": "Бүртгэлгүй юу?", "logout_btn": "Гарах", "my_profile": "Миний профайл", "saved_unis": "Хадгалсан сургуулиуд", "saved_jobs": "Хадгалсан ажлын байр", "notif_settings": "Мэдэгдлийн тохиргоо", "notif_topik": "TOPIK хуваарийн мэдэгдэл", "notif_visa": "Визний шинэчлэл", "notif_jobs": "Шинэ ажлын байр", "notif_news": "Сургуулийн мэдээ", "notif_lang": "Өөрийн хэлээр мэдэгдэл авах",
     },
     "🇯🇵 日本語": {
         "home": "ホーム", "university": "大学", "career": "キャリア", "job": "求人", "topik": "TOPIK", "visa": "ビザ",
@@ -330,7 +344,7 @@ TR = {
         "success": "✅ 完了！", "error": "エラーが発生しました", "warning": "警告", "info": "インフォ",
         "plan_title": "留学プランを立てる", "plan_1": "大学を選ぶ", "plan_2": "TOPIKを準備",
         "plan_3": "ビザを申請", "plan_4": "韓国生活スタート",
-        "ai_counselor": "AIカウンセラー", "new_badge": "NEW", "hot_badge": "人気",
+        "ai_counselor": "AIカウンセラー", "new_badge": "NEW", "hot_badge": "人気", "uni_sub": "韓国留学に最適な大学を探そう", "career_sub": "AIツールで韓国でのキャリアを築こう", "job_sub": "あなたに合った仕事を見つけよう", "topik_sub": "TOPIK試験完全ガイド", "visa_sub": "留学生・就労者向けビザ案内", "search_placeholder": "大学名で検索...", "region": "地域", "gks_support": "GKS奨学金", "all": "すべて", "register_title": "アカウント登録", "login_title": "ログイン", "name_label": "氏名", "email_reg": "メールアドレス", "password_reg": "パスワード", "confirm_password": "パスワード確認", "register_btn": "登録する", "login_btn": "ログイン", "already_have": "すでにアカウントをお持ちですか？", "no_account": "アカウントをお持ちでない方", "logout_btn": "ログアウト", "my_profile": "マイプロフィール", "saved_unis": "保存した大学", "saved_jobs": "保存した求人", "notif_settings": "通知設定", "notif_topik": "TOPIK日程通知", "notif_visa": "ビザ情報更新", "notif_jobs": "新着求人", "notif_news": "大学ニュース", "notif_lang": "母国語で通知を受け取る",
     },
     "🇨🇳 中文": {
         "home": "首页", "university": "大学", "career": "职业", "job": "就业", "topik": "TOPIK", "visa": "签证",
@@ -351,7 +365,7 @@ TR = {
         "success": "✅ 操作成功！", "error": "发生错误", "warning": "注意", "info": "提示信息",
         "plan_title": "规划您的留学之旅", "plan_1": "选择大学", "plan_2": "备考TOPIK",
         "plan_3": "申请签证", "plan_4": "开启韩国生活",
-        "ai_counselor": "AI顾问", "new_badge": "新", "hot_badge": "热门",
+        "ai_counselor": "AI顾问", "new_badge": "新", "hot_badge": "热门", "uni_sub": "找到最适合您在韩国留学的大学", "career_sub": "用AI工具在韩国发展职业", "job_sub": "找到您理想的工作", "topik_sub": "TOPIK考试完全指南", "visa_sub": "外国留学生和工作者签证指南", "search_placeholder": "搜索大学名称...", "region": "地区", "gks_support": "GKS奖学金", "all": "全部", "register_title": "创建账号", "login_title": "登录", "name_label": "全名", "email_reg": "邮箱", "password_reg": "密码", "confirm_password": "确认密码", "register_btn": "注册", "login_btn": "登录", "already_have": "已有账号？", "no_account": "没有账号？", "logout_btn": "退出登录", "my_profile": "我的资料", "saved_unis": "收藏的大学", "saved_jobs": "收藏的职位", "notif_settings": "通知设置", "notif_topik": "TOPIK日程提醒", "notif_visa": "签证更新", "notif_jobs": "新职位提醒", "notif_news": "大学新闻", "notif_lang": "用母语接收提醒",
     },
     "🇻🇳 Tiếng Việt": {
         "home": "TRANG CHỦ", "university": "ĐẠI HỌC", "career": "SỰ NGHIỆP", "job": "VIỆC LÀM", "topik": "TOPIK", "visa": "VISA",
@@ -372,7 +386,7 @@ TR = {
         "success": "✅ Thành công!", "error": "Có lỗi xảy ra", "warning": "Cảnh báo", "info": "Thông tin",
         "plan_title": "Lên kế hoạch du học", "plan_1": "Chọn trường", "plan_2": "Chuẩn bị TOPIK",
         "plan_3": "Xin visa", "plan_4": "Bắt đầu cuộc sống mới",
-        "ai_counselor": "Tư vấn AI", "new_badge": "MỚI", "hot_badge": "HOT",
+        "ai_counselor": "Tư vấn AI", "new_badge": "MỚI", "hot_badge": "HOT", "uni_sub": "Tìm trường đại học phù hợp tại Hàn Quốc", "career_sub": "Phát triển sự nghiệp tại Hàn với AI", "job_sub": "Tìm việc làm phù hợp với bạn", "topik_sub": "Hướng dẫn đầy đủ về kỳ thi TOPIK", "visa_sub": "Hướng dẫn visa cho du học sinh và người đi làm", "search_placeholder": "Tìm tên trường đại học...", "region": "Khu vực", "gks_support": "Học bổng GKS", "all": "Tất cả", "register_title": "Tạo tài khoản", "login_title": "Đăng nhập", "name_label": "Họ và tên", "email_reg": "Email", "password_reg": "Mật khẩu", "confirm_password": "Xác nhận mật khẩu", "register_btn": "Đăng ký", "login_btn": "Đăng nhập", "already_have": "Đã có tài khoản?", "no_account": "Chưa có tài khoản?", "logout_btn": "Đăng xuất", "my_profile": "Hồ sơ của tôi", "saved_unis": "Trường đã lưu", "saved_jobs": "Việc làm đã lưu", "notif_settings": "Cài đặt thông báo", "notif_topik": "Thông báo lịch TOPIK", "notif_visa": "Cập nhật visa", "notif_jobs": "Việc làm mới", "notif_news": "Tin tức trường học", "notif_lang": "Nhận thông báo bằng tiếng mẹ đẻ",
     },
     "🇹🇭 ภาษาไทย": {
         "home": "หน้าหลัก", "university": "มหาวิทยาลัย", "career": "อาชีพ", "job": "หางาน", "topik": "TOPIK", "visa": "วีซ่า",
@@ -393,7 +407,7 @@ TR = {
         "success": "✅ สำเร็จแล้ว!", "error": "เกิดข้อผิดพลาด", "warning": "คำเตือน", "info": "ข้อมูล",
         "plan_title": "วางแผนการเรียนของคุณ", "plan_1": "เลือกมหาวิทยาลัย", "plan_2": "เตรียม TOPIK",
         "plan_3": "ยื่นขอวีซ่า", "plan_4": "เริ่มชีวิตในเกาหลี",
-        "ai_counselor": "ที่ปรึกษา AI", "new_badge": "ใหม่", "hot_badge": "ยอดนิยม",
+        "ai_counselor": "ที่ปรึกษา AI", "new_badge": "ใหม่", "hot_badge": "ยอดนิยม", "uni_sub": "ค้นหามหาวิทยาลัยที่เหมาะสมในเกาหลี", "career_sub": "พัฒนาอาชีพในเกาหลีด้วย AI", "job_sub": "ค้นหางานที่เหมาะกับคุณ", "topik_sub": "คู่มือสอบ TOPIK ฉบับสมบูรณ์", "visa_sub": "คู่มือวีซ่าสำหรับนักศึกษาและผู้ทำงาน", "search_placeholder": "ค้นหาชื่อมหาวิทยาลัย...", "region": "ภูมิภาค", "gks_support": "ทุน GKS", "all": "ทั้งหมด", "register_title": "สร้างบัญชี", "login_title": "เข้าสู่ระบบ", "name_label": "ชื่อ-นามสกุล", "email_reg": "อีเมล", "password_reg": "รหัสผ่าน", "confirm_password": "ยืนยันรหัสผ่าน", "register_btn": "ลงทะเบียน", "login_btn": "เข้าสู่ระบบ", "already_have": "มีบัญชีอยู่แล้ว?", "no_account": "ยังไม่มีบัญชี?", "logout_btn": "ออกจากระบบ", "my_profile": "โปรไฟล์ของฉัน", "saved_unis": "มหาวิทยาลัยที่บันทึก", "saved_jobs": "งานที่บันทึก", "notif_settings": "ตั้งค่าการแจ้งเตือน", "notif_topik": "แจ้งเตือนกำหนดการ TOPIK", "notif_visa": "อัปเดตวีซ่า", "notif_jobs": "งานใหม่", "notif_news": "ข่าวมหาวิทยาลัย", "notif_lang": "รับการแจ้งเตือนเป็นภาษาแม่",
     },
     "🇲🇾 Bahasa Melayu": {
         "home": "UTAMA", "university": "UNIVERSITI", "career": "KERJAYA", "job": "PEKERJAAN", "topik": "TOPIK", "visa": "VISA",
@@ -414,7 +428,7 @@ TR = {
         "success": "✅ Berjaya!", "error": "Ralat berlaku", "warning": "Amaran", "info": "Maklumat",
         "plan_title": "Rancang Perjalanan Anda", "plan_1": "Pilih Universiti", "plan_2": "Sediakan TOPIK",
         "plan_3": "Mohon Visa", "plan_4": "Mula Kehidupan di Korea",
-        "ai_counselor": "Kaunselor AI", "new_badge": "BARU", "hot_badge": "POPULAR",
+        "ai_counselor": "Kaunselor AI", "new_badge": "BARU", "hot_badge": "POPULAR", "uni_sub": "Cari universiti yang sesuai di Korea", "career_sub": "Bina kerjaya di Korea dengan AI", "job_sub": "Cari pekerjaan yang sesuai untuk anda", "topik_sub": "Panduan lengkap peperiksaan TOPIK", "visa_sub": "Panduan visa untuk pelajar dan pekerja asing", "search_placeholder": "Cari nama universiti...", "region": "Wilayah", "gks_support": "Biasiswa GKS", "all": "Semua", "register_title": "Buat Akaun", "login_title": "Log Masuk", "name_label": "Nama Penuh", "email_reg": "E-mel", "password_reg": "Kata Laluan", "confirm_password": "Sahkan Kata Laluan", "register_btn": "Daftar", "login_btn": "Log Masuk", "already_have": "Sudah ada akaun?", "no_account": "Belum ada akaun?", "logout_btn": "Log Keluar", "my_profile": "Profil Saya", "saved_unis": "Universiti Disimpan", "saved_jobs": "Kerja Disimpan", "notif_settings": "Tetapan Pemberitahuan", "notif_topik": "Amaran Jadual TOPIK", "notif_visa": "Kemas Kini Visa", "notif_jobs": "Kerja Baru", "notif_news": "Berita Universiti", "notif_lang": "Terima amaran dalam bahasa ibunda",
     },
     "🇷🇺 Русский": {
         "home": "ГЛАВНАЯ", "university": "УНИВЕРСИТЕТ", "career": "КАРЬЕРА", "job": "РАБОТА", "topik": "TOPIK", "visa": "ВИЗА",
@@ -435,7 +449,7 @@ TR = {
         "success": "✅ Успешно!", "error": "Ошибка", "warning": "Предупреждение", "info": "Информация",
         "plan_title": "Спланируйте путь в Корею", "plan_1": "Выбрать университет", "plan_2": "Подготовить TOPIK",
         "plan_3": "Оформить визу", "plan_4": "Начать жизнь в Корее",
-        "ai_counselor": "AI Консультант", "new_badge": "НОВОЕ", "hot_badge": "ТОП",
+        "ai_counselor": "AI Консультант", "new_badge": "НОВОЕ", "hot_badge": "ТОП", "uni_sub": "Найдите подходящий университет в Корее", "career_sub": "Стройте карьеру в Корее с помощью AI", "job_sub": "Найдите работу своей мечты в Корее", "topik_sub": "Полное руководство по экзамену TOPIK", "visa_sub": "Руководство по визам для иностранных студентов", "search_placeholder": "Поиск по названию университета...", "region": "Регион", "gks_support": "Стипендия GKS", "all": "Все", "register_title": "Создать аккаунт", "login_title": "Войти", "name_label": "Полное имя", "email_reg": "Email", "password_reg": "Пароль", "confirm_password": "Подтвердите пароль", "register_btn": "Зарегистрироваться", "login_btn": "Войти", "already_have": "Уже есть аккаунт?", "no_account": "Нет аккаунта?", "logout_btn": "Выйти", "my_profile": "Мой профиль", "saved_unis": "Сохранённые вузы", "saved_jobs": "Сохранённые вакансии", "notif_settings": "Настройки уведомлений", "notif_topik": "Оповещения о расписании TOPIK", "notif_visa": "Обновления визы", "notif_jobs": "Новые вакансии", "notif_news": "Новости университетов", "notif_lang": "Получать уведомления на родном языке",
     },
 }
 
@@ -558,12 +572,25 @@ def render_nav():
                     st.rerun()
 
     with col_lang:
-        new_lang = st.selectbox("🌐", list(TR.keys()), 
-                                index=list(TR.keys()).index(st.session_state.lang),
-                                label_visibility="collapsed", key="lang_sel")
-        if new_lang != st.session_state.lang:
-            st.session_state.lang = new_lang
-            st.rerun()
+        col_a, col_b = st.columns([3,1])
+        with col_a:
+            new_lang = st.selectbox("🌐", list(TR.keys()),
+                                    index=list(TR.keys()).index(st.session_state.lang),
+                                    label_visibility="collapsed", key="lang_sel")
+            if new_lang != st.session_state.lang:
+                st.session_state.lang = new_lang
+                st.rerun()
+        with col_b:
+            user = st.session_state.get("user")
+            if user:
+                if st.button("👤", key="nav_profile", help=user.get("name","")):
+                    st.session_state.page = "PROFILE"
+                    st.rerun()
+            else:
+                if st.button("🔑", key="nav_auth"):
+                    st.session_state.page = "AUTH"
+                    st.session_state.auth_mode = "register"
+                    st.rerun()
 
 # ==========================================
 # HOME PAGE
@@ -680,15 +707,15 @@ def page_home():
 # UNIVERSITY PAGE
 # ==========================================
 def page_university():
-    st.markdown(f'<div class="sec-header"><div class="sec-title">🎓 {t("university")}</div><div class="sec-sub">Find the right university for your future in Korea</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sec-header"><div class="sec-title">🎓 {t("university")}</div><div class="sec-sub">{t("uni_sub")}</div></div>', unsafe_allow_html=True)
     tab1, tab2, tab3, tab4 = st.tabs([f"🔍 {t('research')}", f"🏛️ {t('school')}", f"📋 {t('apply')}", f"📖 {t('admission')}"])
 
     with tab1:
         st.markdown('<div class="content-pad">', unsafe_allow_html=True)
         c1, c2, c3 = st.columns([3, 1, 1])
-        with c1: keyword = st.text_input(t('search'), placeholder="Seoul National, KAIST, Yonsei...")
-        with c2: region = st.selectbox("Region", ["All", "Seoul", "Busan", "Daejeon", "Incheon", "Gwangju"])
-        with c3: gks = st.selectbox("GKS Support", ["All", "Yes", "No"])
+        with c1: keyword = st.text_input(t('search'), placeholder=f"{t('search_placeholder')}")
+        with c2: region = st.selectbox(t("region"), ["All", "Seoul", "Busan", "Daejeon", "Incheon", "Gwangju"])
+        with c3: gks = st.selectbox(t("gks_support"), [t("all"), "Yes", "No"])
 
         # Load from Supabase
         db_unis = load_universities()
@@ -953,7 +980,7 @@ def page_university():
 # CAREER PAGE
 # ==========================================
 def page_career():
-    st.markdown(f'<div class="sec-header"><div class="sec-title">🚀 {t("career")}</div><div class="sec-sub">Build your career in Korea with AI-powered tools</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sec-header"><div class="sec-title">🚀 {t("career")}</div><div class="sec-sub">{t("career_sub")}</div></div>', unsafe_allow_html=True)
     tab1, tab2, tab3 = st.tabs([f"📄 {t('cv_check')}", f"🎤 {t('mock_interview')}", "📚 Resources"])
 
     with tab1:
@@ -1079,7 +1106,7 @@ def page_career():
 # JOB PAGE
 # ==========================================
 def page_job():
-    st.markdown(f'<div class="sec-header"><div class="sec-title">💼 {t("job")}</div><div class="sec-sub">Find your perfect job in Korea</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sec-header"><div class="sec-title">💼 {t("job")}</div><div class="sec-sub">{t("job_sub")}</div></div>', unsafe_allow_html=True)
     tab1, tab2, tab3 = st.tabs([f"📋 {t('job_board')}", f"⭐ {t('my_matches')}", "🔗 Portals"])
 
     with tab1:
@@ -1158,7 +1185,7 @@ def page_job():
 # TOPIK PAGE
 # ==========================================
 def page_topik():
-    st.markdown(f'<div class="sec-header"><div class="sec-title">📝 {t("topik")}</div><div class="sec-sub">Korean language proficiency test — everything you need to know</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sec-header"><div class="sec-title">📝 {t("topik")}</div><div class="sec-sub">{t("topik_sub")}</div></div>', unsafe_allow_html=True)
     tab1, tab2, tab3, tab4 = st.tabs([f"📅 {t('schedule')}", f"✍️ {t('register')}", f"📊 {t('levels')}", f"💡 {t('study_tips')}"])
 
     with tab1:
@@ -1256,7 +1283,7 @@ def page_topik():
 # VISA PAGE
 # ==========================================
 def page_visa():
-    st.markdown(f'<div class="sec-header"><div class="sec-title">🛂 {t("visa")}</div><div class="sec-sub">Visa guide for international students and workers in Korea</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sec-header"><div class="sec-title">🛂 {t("visa")}</div><div class="sec-sub">{t("visa_sub")}</div></div>', unsafe_allow_html=True)
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎓 D-2", "📚 D-4", "💼 E-7", "🏠 F-2", "🌟 F-5"])
 
     # Load visa data from Supabase
@@ -1427,6 +1454,7 @@ def admin_panel():
 # ==========================================
 render_nav()
 
+render_auth()
 page = st.session_state.page
 if page == "HOME": page_home()
 elif page == "UNIVERSITY": page_university()
@@ -1434,6 +1462,164 @@ elif page == "CAREER": page_career()
 elif page == "JOB": page_job()
 elif page == "TOPIK": page_topik()
 elif page == "VISA": page_visa()
+elif page == "AUTH": page_auth()
+elif page == "PROFILE": page_profile()
 
 floating_chat()
 admin_panel()
+
+
+# ==========================================
+# USER REGISTRATION & AUTH
+# ==========================================
+def render_auth():
+    if "user" not in st.session_state:
+        st.session_state.user = None
+    if "auth_mode" not in st.session_state:
+        st.session_state.auth_mode = "login"
+
+def page_auth():
+    st.markdown(f'<div class="sec-header"><div class="sec-title">👤 {t("register_title") if st.session_state.auth_mode == "register" else t("login_title")}</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="content-pad">', unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.session_state.auth_mode == "register":
+            st.markdown(f"""<div class="g-card">""", unsafe_allow_html=True)
+            name = st.text_input(t("name_label"), placeholder="John Doe")
+            email = st.text_input(t("email_reg"), placeholder="you@email.com")
+            lang_pref = st.selectbox("🌐 Preferred Language", list(TR.keys()))
+            password = st.text_input(t("password_reg"), type="password")
+            confirm = st.text_input(t("confirm_password"), type="password")
+
+            # Notification preferences
+            st.markdown("#### 🔔 " + t("notif_settings"))
+            notif_topik = st.checkbox(t("notif_topik"), value=True)
+            notif_visa = st.checkbox(t("notif_visa"), value=True)
+            notif_jobs = st.checkbox(t("notif_jobs"), value=True)
+            notif_news = st.checkbox(t("notif_news"), value=False)
+
+            if st.button(t("register_btn"), use_container_width=True):
+                if not name or not email or not password:
+                    st.error(t("error"))
+                elif password != confirm:
+                    st.error("Passwords do not match!")
+                else:
+                    try:
+                        topics = []
+                        if notif_topik: topics.append("TOPIK")
+                        if notif_visa: topics.append("VISA")
+                        if notif_jobs: topics.append("JOBS")
+                        if notif_news: topics.append("NEWS")
+
+                        if supabase:
+                            supabase.table("users").insert({
+                                "name": name,
+                                "email": email,
+                                "lang": lang_pref,
+                                "topics": topics,
+                                "created_at": datetime.utcnow().isoformat()
+                            }).execute()
+
+                        st.session_state.user = {"name": name, "email": email, "lang": lang_pref, "topics": topics}
+                        st.session_state.lang = lang_pref
+                        st.success(t("success"))
+                        st.balloons()
+                        st.session_state.page = "HOME"
+                        st.rerun()
+                    except Exception as e:
+                        # Save locally even if DB fails
+                        st.session_state.user = {"name": name, "email": email, "lang": lang_pref, "topics": []}
+                        st.session_state.lang = lang_pref
+                        st.success(t("success"))
+                        st.session_state.page = "HOME"
+                        st.rerun()
+
+            st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown(f"<p style='text-align:center;color:#64748B;'>{t('already_have')} <a href='#' style='color:#0D3B8E;' onclick='void(0)'>{t('login_btn')}</a></p>", unsafe_allow_html=True)
+            if st.button(t("login_title"), key="go_login"):
+                st.session_state.auth_mode = "login"
+                st.rerun()
+
+        else:
+            st.markdown(f"""<div class="g-card">""", unsafe_allow_html=True)
+            email = st.text_input(t("email_reg"), placeholder="you@email.com")
+            password = st.text_input(t("password_reg"), type="password")
+
+            if st.button(t("login_btn"), use_container_width=True):
+                try:
+                    if supabase:
+                        res = supabase.table("users").select("*").eq("email", email).execute()
+                        if res.data:
+                            user = res.data[0]
+                            st.session_state.user = user
+                            st.session_state.lang = user.get("lang", "🇺🇸 English")
+                            st.success(t("success"))
+                            st.session_state.page = "HOME"
+                            st.rerun()
+                        else:
+                            st.error("User not found. Please register first.")
+                    else:
+                        st.session_state.user = {"name": "User", "email": email, "lang": st.session_state.lang}
+                        st.session_state.page = "HOME"
+                        st.rerun()
+                except:
+                    st.session_state.user = {"name": "User", "email": email, "lang": st.session_state.lang}
+                    st.session_state.page = "HOME"
+                    st.rerun()
+
+            st.markdown("</div>", unsafe_allow_html=True)
+            if st.button(t("register_title"), key="go_register"):
+                st.session_state.auth_mode = "register"
+                st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def page_profile():
+    user = st.session_state.get("user")
+    if not user:
+        st.session_state.page = "AUTH"
+        st.rerun()
+        return
+
+    st.markdown(f'<div class="sec-header"><div class="sec-title">👤 {t("my_profile")}</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="content-pad">', unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(f"""
+        <div class="g-card">
+            <h3>👤 {user.get('name','')}</h3>
+            <p>✉️ {user.get('email','')}</p>
+            <p>🌐 {user.get('lang','')}</p>
+        </div>""", unsafe_allow_html=True)
+
+        st.markdown(f"#### 🔔 {t('notif_settings')}")
+        topics = user.get("topics", [])
+        n1 = st.checkbox(t("notif_topik"), value="TOPIK" in topics)
+        n2 = st.checkbox(t("notif_visa"), value="VISA" in topics)
+        n3 = st.checkbox(t("notif_jobs"), value="JOBS" in topics)
+        n4 = st.checkbox(t("notif_news"), value="NEWS" in topics)
+        st.info(t("notif_lang"))
+
+        if st.button("💾 Save", use_container_width=True):
+            new_topics = []
+            if n1: new_topics.append("TOPIK")
+            if n2: new_topics.append("VISA")
+            if n3: new_topics.append("JOBS")
+            if n4: new_topics.append("NEWS")
+            st.session_state.user["topics"] = new_topics
+            st.success(t("success"))
+
+    with col2:
+        st.markdown(f"#### 🎓 {t('saved_unis')}")
+        st.info("Bookmark universities by clicking ⭐ on university cards")
+        st.markdown(f"#### 💼 {t('saved_jobs')}")
+        st.info("Bookmark jobs by clicking ❤️ on job cards")
+
+    if st.button(t("logout_btn"), type="secondary"):
+        st.session_state.user = None
+        st.session_state.page = "HOME"
+        st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
