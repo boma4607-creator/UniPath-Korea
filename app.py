@@ -347,12 +347,103 @@ with st.sidebar:
         tab1, tab2 = st.tabs(["PDF Upload", "Metrics"])
         
         with tab1:
-            uploaded_file = st.file_uploader("Batch Upload Knowledge (PDF)", type="pdf")
-            if uploaded_file:
-                with st.spinner("Ingesting & Vectorizing..."):
-                    # Incremental Upsert Logic (Simplified)
-                    # pdf_reader = PyPDF2.PdfReader(uploaded_file) ... Logic here
-                    st.toast("Document Vectorized to Supabase!")
+            st.markdown("### 📄 PDF Knowledge Base Upload")
+            st.caption("Uploaded PDFs will be chunked, embedded via Gemini, and stored in Supabase vector DB.")
+
+            uploaded_files = st.file_uploader(
+                "Upload PDF files (multiple allowed)",
+                type="pdf",
+                accept_multiple_files=True
+            )
+
+            chunk_size = st.slider("Chunk Size (words)", min_value=100, max_value=800, value=400, step=50)
+            chunk_overlap = st.slider("Chunk Overlap (words)", min_value=0, max_value=200, value=50, step=10)
+
+            if uploaded_files and st.button("🚀 Start Vectorizing & Upload", use_container_width=True):
+                total_chunks = 0
+                for uploaded_file in uploaded_files:
+                    with st.spinner(f"Processing: {uploaded_file.name} ..."):
+                        try:
+                            # --- Step 1: Extract text from PDF using pypdf ---
+                            import pypdf
+                            import io
+
+                            pdf_bytes = uploaded_file.read()
+                            pdf_reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+                            full_text = ""
+                            for page_num, page in enumerate(pdf_reader.pages):
+                                page_text = page.extract_text()
+                                if page_text:
+                                    full_text += page_text + "\n"
+
+                            if not full_text.strip():
+                                st.warning(f"⚠️ {uploaded_file.name}: No extractable text found (possibly scanned image PDF).")
+                                continue
+
+                            # --- Step 2: Chunk the text ---
+                            words = full_text.split()
+                            chunks = []
+                            step = chunk_size - chunk_overlap
+                            for i in range(0, len(words), step):
+                                chunk = " ".join(words[i: i + chunk_size])
+                                if chunk.strip():
+                                    chunks.append(chunk)
+
+                            st.info(f"📄 {uploaded_file.name} → {len(chunks)} chunks created")
+
+                            # --- Step 3: Embed each chunk via Gemini & upsert to Supabase ---
+                            progress = st.progress(0, text="Embedding chunks...")
+                            for idx, chunk in enumerate(chunks):
+                                # Get embedding from Gemini
+                                embedding_vector = Settings.embed_model.get_text_embedding(chunk)
+
+                                # Upsert into Supabase documents table
+                                supabase.table("documents").insert({
+                                    "content": chunk,
+                                    "metadata": {
+                                        "source": uploaded_file.name,
+                                        "chunk_index": idx,
+                                        "total_chunks": len(chunks),
+                                        "uploaded_at": datetime.utcnow().isoformat()
+                                    },
+                                    "embedding": embedding_vector
+                                }).execute()
+
+                                progress.progress(
+                                    (idx + 1) / len(chunks),
+                                    text=f"Uploading chunk {idx + 1}/{len(chunks)}"
+                                )
+                                total_chunks += 1
+
+                            st.success(f"✅ {uploaded_file.name} → {len(chunks)} chunks stored in Supabase!")
+
+                        except Exception as e:
+                            st.error(f"❌ Failed to process {uploaded_file.name}: {e}")
+
+                if total_chunks > 0:
+                    st.balloons()
+                    st.toast(f"🎉 Done! {total_chunks} total chunks vectorized to Supabase.")
+
+            # --- Show existing document stats ---
+            st.divider()
+            if st.button("📊 View Uploaded Documents Stats"):
+                try:
+                    result = supabase.table("documents").select("metadata").execute()
+                    rows = result.data
+                    if rows:
+                        sources = {}
+                        for row in rows:
+                            src = row.get("metadata", {}).get("source", "Unknown")
+                            sources[src] = sources.get(src, 0) + 1
+                        stats_df = pd.DataFrame([
+                            {"File Name": k, "Chunks Stored": v} for k, v in sources.items()
+                        ])
+                        st.dataframe(stats_df, use_container_width=True)
+                        st.caption(f"Total chunks in DB: **{len(rows)}**")
+                    else:
+                        st.info("No documents uploaded yet.")
+                except Exception as e:
+                    st.error(f"Could not fetch stats: {e}")
         
         with tab2:
             fig = px.line(x=[1,2,3,4], y=[10,25,45,110], title="Daily AI Queries")
