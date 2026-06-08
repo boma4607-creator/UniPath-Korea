@@ -255,6 +255,28 @@ p, span, div, li, td, th { color: #1E293B; }
 .stTabs [data-baseweb="tab"] { color: #475569 !important; font-weight: 600 !important; }
 .stTabs [aria-selected="true"] { color: #0D3B8E !important; }
 label { color: #374151 !important; font-weight: 500 !important; }
+
+/* FIX INPUT FIELDS — navy blue theme */
+input, textarea,
+[data-baseweb="input"] input,
+[data-baseweb="textarea"] textarea,
+[data-testid="stTextInput"] input {
+    background-color: #EEF2FF !important;
+    color: #0D3B8E !important;
+    border: 1.5px solid #0D3B8E !important;
+    border-radius: 12px !important;
+}
+[data-baseweb="input"] { background-color: #EEF2FF !important; }
+[data-baseweb="select"] { background-color: #EEF2FF !important; }
+[data-baseweb="select"] div { background-color: #EEF2FF !important; color: #0D3B8E !important; }
+[data-testid="stSelectbox"] div { background-color: #EEF2FF !important; color: #0D3B8E !important; }
+[data-testid="stExpander"] {
+    background: #EEF2FF !important;
+    border: 1.5px solid #0D3B8E !important;
+    border-radius: 16px !important;
+}
+[data-testid="stExpander"] summary { color: #0D3B8E !important; font-weight: 600 !important; }
+[data-testid="stExpander"] p { color: #1E293B !important; }
 </style>
 """, unsafe_allow_html=True)
 
