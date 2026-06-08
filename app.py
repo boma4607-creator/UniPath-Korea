@@ -5,8 +5,8 @@ import time
 import json
 import requests
 from datetime import datetime
-from llama_index.llms.gemini import Gemini
-from llama_index.embeddings.gemini import GeminiEmbedding
+from llama_index.llms.google_genai import GoogleGenAI as Gemini
+from llama_index.embeddings.google_genai import GoogleGenAIEmbedding as GeminiEmbedding
 from llama_index.vector_stores.supabase import SupabaseVectorStore
 from llama_index.core import StorageContext, VectorStoreIndex, Document, Settings
 from llama_index.core.node_parser import SentenceSplitter
@@ -221,8 +221,8 @@ def t(key): return TR[st.session_state.language].get(key, key)
 
 # LLM / RAG Settings
 try:
-    Settings.llm = Gemini(api_key=st.secrets["GEMINI_API_KEY"], model_name="models/gemini-1.5-pro")
-    Settings.embed_model = GeminiEmbedding(api_key=st.secrets["GEMINI_API_KEY"], model_name="models/embedding-001")
+    Settings.llm = Gemini(api_key=st.secrets["GEMINI_API_KEY"], model="models/gemini-1.5-pro")
+    Settings.embed_model = GeminiEmbedding(api_key=st.secrets["GEMINI_API_KEY"], model_name="models/text-embedding-004")
     supabase: Client = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
     vector_store = SupabaseVectorStore(postgres_connection_string=st.secrets["SUPABASE_DB_CONNECTION"], collection_name="documents")
     index = VectorStoreIndex.from_vector_store(vector_store)
