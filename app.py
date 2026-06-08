@@ -1449,24 +1449,7 @@ def admin_panel():
                 st.metric("Total Chat Sessions", len(st.session_state.chat_history) // 2)
                 st.metric("Active Language", st.session_state.lang)
 
-# ==========================================
-# MAIN ROUTER
-# ==========================================
-render_nav()
-
-render_auth()
-page = st.session_state.page
-if page == "HOME": page_home()
-elif page == "UNIVERSITY": page_university()
-elif page == "CAREER": page_career()
-elif page == "JOB": page_job()
-elif page == "TOPIK": page_topik()
-elif page == "VISA": page_visa()
-elif page == "AUTH": page_auth()
-elif page == "PROFILE": page_profile()
-
-floating_chat()
-admin_panel()
+# MAIN ROUTER — placed after all function definitions
 
 
 # ==========================================
@@ -1623,3 +1606,22 @@ def page_profile():
         st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
+
+# ==========================================
+# MAIN ROUTER
+# ==========================================
+render_nav()
+render_auth()
+
+page = st.session_state.page
+if page == "HOME": page_home()
+elif page == "UNIVERSITY": page_university()
+elif page == "CAREER": page_career()
+elif page == "JOB": page_job()
+elif page == "TOPIK": page_topik()
+elif page == "VISA": page_visa()
+elif page == "AUTH": page_auth()
+elif page == "PROFILE": page_profile()
+
+floating_chat()
+admin_panel()
