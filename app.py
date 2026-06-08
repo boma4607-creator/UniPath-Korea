@@ -646,36 +646,158 @@ def page_university():
         with c3: gks = st.selectbox("GKS Support", ["All", "Yes", "No"])
 
         unis = [
-            {"name": "Seoul National University (SNU)", "rank": "#1 Korea", "region": "Seoul", "gks": True, "topik": "LV 4+", "phone": "+82-2-880-5114", "email": "oia@snu.ac.kr", "url": "https://en.snu.ac.kr"},
-            {"name": "Korea Advanced Institute of Science (KAIST)", "rank": "#2 Korea", "region": "Daejeon", "gks": True, "topik": "LV 3+", "phone": "+82-42-350-2114", "email": "intl@kaist.ac.kr", "url": "https://www.kaist.ac.kr"},
-            {"name": "Yonsei University", "rank": "#3 Korea", "region": "Seoul", "gks": True, "topik": "LV 4+", "phone": "+82-2-2123-2114", "email": "oia@yonsei.ac.kr", "url": "https://www.yonsei.ac.kr"},
-            {"name": "Korea University (KU)", "rank": "#4 Korea", "region": "Seoul", "gks": True, "topik": "LV 4+", "phone": "+82-2-3290-1114", "email": "oia@korea.ac.kr", "url": "https://www.korea.ac.kr"},
-            {"name": "Hanyang University", "rank": "#5 Korea", "region": "Seoul", "gks": True, "topik": "LV 3+", "phone": "+82-2-2220-0114", "email": "intl@hanyang.ac.kr", "url": "https://www.hanyang.ac.kr"},
-            {"name": "Sungkyunkwan University (SKKU)", "rank": "#6 Korea", "region": "Seoul", "gks": True, "topik": "LV 4+", "phone": "+82-2-760-0114", "email": "oia@skku.edu", "url": "https://www.skku.edu"},
-            {"name": "Pusan National University", "rank": "#8 Korea", "region": "Busan", "gks": True, "topik": "LV 3+", "phone": "+82-51-510-1114", "email": "intl@pusan.ac.kr", "url": "https://www.pusan.ac.kr"},
+            {
+                "name": "Sookmyung Women's University", "rank": "Top 15 Korea", "region": "Seoul", "gks": True,
+                "topik": "LV 3+", "phone": "+82-2-710-9114", "email": "oia@sookmyung.ac.kr",
+                "url": "https://www.sookmyung.ac.kr", "apply_url": "https://admission.sookmyung.ac.kr",
+                "intl_url": "https://oia.sookmyung.ac.kr",
+                "founded": "1906", "type": "Women's University", "students": "~14,000",
+                "majors": "Business, Pharmacy, Music, IT, Design, Education, Law",
+                "grad_req": "130 credits + TOPIK LV 3+ + Korean language 6 credits",
+                "tuition": "6,000,000 ~ 9,000,000 KRW/year",
+                "dorm": "Available (priority for international students)",
+                "scholarship": "Sookmyung Global Scholarship (50~100% tuition)",
+                "intl_office_hours": "Mon–Fri 09:00–18:00",
+                "location_detail": "Cheongpa-ro, Yongsan-gu, Seoul (near Sookmyung Women's Univ. Station)",
+            },
+            {
+                "name": "Seoul National University (SNU)", "rank": "#1 Korea", "region": "Seoul", "gks": True,
+                "topik": "LV 4+", "phone": "+82-2-880-5114", "email": "oia@snu.ac.kr",
+                "url": "https://en.snu.ac.kr", "apply_url": "https://admission.snu.ac.kr",
+                "intl_url": "https://oia.snu.ac.kr",
+                "founded": "1946", "type": "National University", "students": "~28,000",
+                "majors": "Engineering, Medicine, Law, Business, Humanities, Science, Agriculture",
+                "grad_req": "130 credits + TOPIK LV 4+ + Korean language 8 credits",
+                "tuition": "4,000,000 ~ 7,000,000 KRW/year (national uni — lower fees)",
+                "dorm": "Available (limited — apply early)",
+                "scholarship": "GKS, SNU Global Scholarship, ASEAN Scholarship",
+                "intl_office_hours": "Mon–Fri 09:00–18:00",
+                "location_detail": "Gwanak-ro, Gwanak-gu, Seoul (Nakseongdae Station)",
+            },
+            {
+                "name": "Yonsei University", "rank": "#3 Korea", "region": "Seoul", "gks": True,
+                "topik": "LV 4+", "phone": "+82-2-2123-2114", "email": "oia@yonsei.ac.kr",
+                "url": "https://www.yonsei.ac.kr", "apply_url": "https://oia.yonsei.ac.kr/apply",
+                "intl_url": "https://oia.yonsei.ac.kr",
+                "founded": "1885", "type": "Private University", "students": "~36,000",
+                "majors": "Business, Medicine, Engineering, Law, Social Sciences, Theology",
+                "grad_req": "130 credits + TOPIK LV 4+ + English proficiency",
+                "tuition": "8,000,000 ~ 12,000,000 KRW/year",
+                "dorm": "Available (Sinchon & International Campus)",
+                "scholarship": "GKS, Yonsei Merit Scholarship, Need-based aid",
+                "intl_office_hours": "Mon–Fri 09:00–17:30",
+                "location_detail": "Yonsei-ro, Seodaemun-gu, Seoul (Sinchon Station)",
+            },
+            {
+                "name": "Korea University (KU)", "rank": "#4 Korea", "region": "Seoul", "gks": True,
+                "topik": "LV 4+", "phone": "+82-2-3290-1114", "email": "oia@korea.ac.kr",
+                "url": "https://www.korea.ac.kr", "apply_url": "https://oia.korea.ac.kr",
+                "intl_url": "https://oia.korea.ac.kr",
+                "founded": "1905", "type": "Private University", "students": "~25,000",
+                "majors": "Law, Business, Medicine, Engineering, Liberal Arts, Science",
+                "grad_req": "130 credits + TOPIK LV 4+ + Korean language 4 credits",
+                "tuition": "8,500,000 ~ 13,000,000 KRW/year",
+                "dorm": "Available (priority lottery)",
+                "scholarship": "GKS, KU Global Scholarship, Academic Excellence Award",
+                "intl_office_hours": "Mon–Fri 09:00–18:00",
+                "location_detail": "Anam-ro, Seongbuk-gu, Seoul (Anam Station)",
+            },
+            {
+                "name": "Hanyang University", "rank": "#5 Korea", "region": "Seoul", "gks": True,
+                "topik": "LV 3+", "phone": "+82-2-2220-0114", "email": "intl@hanyang.ac.kr",
+                "url": "https://www.hanyang.ac.kr", "apply_url": "https://intl.hanyang.ac.kr",
+                "intl_url": "https://intl.hanyang.ac.kr",
+                "founded": "1939", "type": "Private University", "students": "~23,000",
+                "majors": "Engineering, Architecture, Medicine, Business, Music, Sports",
+                "grad_req": "130 credits + TOPIK LV 3+ + Korean language 3 credits",
+                "tuition": "7,500,000 ~ 11,000,000 KRW/year",
+                "dorm": "Available (international priority)",
+                "scholarship": "GKS, Hanyang International Scholarship (50~100%)",
+                "intl_office_hours": "Mon–Fri 09:00–17:00",
+                "location_detail": "Wangsimni-ro, Seongdong-gu, Seoul (Hanyang Univ. Station)",
+            },
+            {
+                "name": "Sungkyunkwan University (SKKU)", "rank": "#6 Korea", "region": "Seoul", "gks": True,
+                "topik": "LV 4+", "phone": "+82-2-760-0114", "email": "oia@skku.edu",
+                "url": "https://www.skku.edu", "apply_url": "https://oia.skku.edu",
+                "intl_url": "https://oia.skku.edu",
+                "founded": "1398", "type": "Private University (Samsung-affiliated)", "students": "~35,000",
+                "majors": "Business, Engineering, Medicine, Law, Humanities, Science",
+                "grad_req": "130 credits + TOPIK LV 4+",
+                "tuition": "8,000,000 ~ 12,500,000 KRW/year",
+                "dorm": "Available (Humanities/Natural Science campus)",
+                "scholarship": "GKS, SKKU Global Scholarship, Samsung Dream Scholarship",
+                "intl_office_hours": "Mon–Fri 09:00–18:00",
+                "location_detail": "Jongno-gu, Seoul & Suwon Campus",
+            },
+            {
+                "name": "Pusan National University", "rank": "#8 Korea", "region": "Busan", "gks": True,
+                "topik": "LV 3+", "phone": "+82-51-510-1114", "email": "intl@pusan.ac.kr",
+                "url": "https://www.pusan.ac.kr", "apply_url": "https://intl.pusan.ac.kr",
+                "intl_url": "https://intl.pusan.ac.kr",
+                "founded": "1946", "type": "National University", "students": "~28,000",
+                "majors": "Engineering, Medicine, Law, Business, Education, Arts",
+                "grad_req": "130 credits + TOPIK LV 3+",
+                "tuition": "3,500,000 ~ 6,500,000 KRW/year (national — lower fees)",
+                "dorm": "Available (international dormitory)",
+                "scholarship": "GKS, PNU Global Scholarship, Busan City Scholarship",
+                "intl_office_hours": "Mon–Fri 09:00–18:00",
+                "location_detail": "Busandaehak-ro, Geumjeong-gu, Busan (Busan Nat'l Univ. Station)",
+            },
         ]
+
         for uni in unis:
             if keyword and keyword.lower() not in uni["name"].lower(): continue
             if region != "All" and uni["region"] != region: continue
             if gks == "Yes" and not uni["gks"]: continue
-            st.markdown(f"""
-            <div class="g-card">
-                <div style='display:flex;justify-content:space-between;align-items:flex-start;'>
-                    <div>
-                        <h3>{uni['name']}</h3>
-                        <p>📍 {uni['region']} &nbsp;|&nbsp; 🏆 {uni['rank']}</p>
-                    </div>
-                    <div>
-                        {'<span class="tag tag-green">GKS ✓</span>' if uni['gks'] else ''}
-                        <span class="tag tag-blue">TOPIK {uni['topik']}</span>
-                    </div>
+
+            with st.expander(f"{'⭐ ' if 'Sookmyung' in uni['name'] else ''}{uni['name']}  |  📍 {uni['region']}  |  🏆 {uni['rank']}", expanded="Sookmyung" in uni["name"]):
+                st.markdown(f"""
+                <div style='display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;'>
+                    {'<span class="tag tag-green">GKS ✓</span>' if uni['gks'] else ''}
+                    <span class="tag tag-blue">TOPIK {uni['topik']}</span>
+                    <span class="tag tag-navy">Est. {uni['founded']}</span>
+                    <span class="tag tag-orange">{uni['type']}</span>
                 </div>
-                <div style='margin-top:12px;display:flex;gap:20px;font-size:0.88rem;color:#64748B;'>
-                    <span>📞 {uni['phone']}</span>
-                    <span>✉️ {uni['email']}</span>
-                    <a href="{uni['url']}" target="_blank" style='color:#0D3B8E;font-weight:600;'>🔗 Official Site</a>
+                """, unsafe_allow_html=True)
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"""
+                    <div class="g-card" style='margin-bottom:12px;'>
+                        <h3>📍 Location & Contact</h3>
+                        <p style='margin-top:8px;'>🏫 {uni['location_detail']}</p>
+                        <p>📞 {uni['phone']}</p>
+                        <p>✉️ {uni['email']}</p>
+                        <p>🕐 Office hours: {uni['intl_office_hours']}</p>
+                        <p>👥 Total students: {uni['students']}</p>
+                    </div>
+                    <div class="g-card">
+                        <h3>💰 Tuition & Scholarship</h3>
+                        <p style='margin-top:8px;'>💵 {uni['tuition']}</p>
+                        <p>🏠 Dormitory: {uni['dorm']}</p>
+                        <p>🎓 {uni['scholarship']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with col2:
+                    st.markdown(f"""
+                    <div class="g-card" style='margin-bottom:12px;'>
+                        <h3>🎓 Graduation Requirements</h3>
+                        <p style='margin-top:8px;color:#475569;'>{uni['grad_req']}</p>
+                    </div>
+                    <div class="g-card">
+                        <h3>📚 Available Majors</h3>
+                        <p style='margin-top:8px;color:#475569;'>{uni['majors']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                st.markdown(f"""
+                <div style='display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;'>
+                    <a href="{uni['url']}" target="_blank" style='background:#0D3B8E;color:white;padding:10px 20px;border-radius:50px;text-decoration:none;font-weight:600;font-size:0.9rem;'>🌐 Official Website</a>
+                    <a href="{uni['apply_url']}" target="_blank" style='background:#00C897;color:white;padding:10px 20px;border-radius:50px;text-decoration:none;font-weight:600;font-size:0.9rem;'>📝 Apply Now</a>
+                    <a href="{uni['intl_url']}" target="_blank" style='background:#FF6B35;color:white;padding:10px 20px;border-radius:50px;text-decoration:none;font-weight:600;font-size:0.9rem;'>🌏 International Office</a>
                 </div>
-            </div>""", unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with tab2:
