@@ -11,3 +11,4 @@ pypdf==4.1.0
 python-dotenv==1.0.1
 requests==2.31.0
 httpx>=0.24,<0.26
+pillow==11.2.1
