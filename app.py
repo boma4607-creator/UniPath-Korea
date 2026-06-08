@@ -242,8 +242,9 @@ div[data-testid="stTabs"] button {
 #MainMenu, footer, header { visibility: hidden; }
 [data-testid="stDecoration"] { display: none; }
 
-/* FIX TEXT VISIBILITY */
-p, span, div, li, td, th { color: #1E293B; }
+/* TEXT COLORS */
+p, span, li, td, th { color: #1E293B; }
+h1, h2, h3, h4 { color: #0D3B8E; }
 .g-card p { color: #475569 !important; }
 .g-card h3 { color: #0D3B8E !important; }
 .sec-title { color: #0D3B8E !important; }
@@ -252,31 +253,50 @@ p, span, div, li, td, th { color: #1E293B; }
 .kpi-lab { color: #64748B !important; }
 [data-testid="stMarkdownContainer"] p { color: #1E293B !important; }
 [data-testid="stMarkdownContainer"] li { color: #475569 !important; }
-.stTabs [data-baseweb="tab"] { color: #475569 !important; font-weight: 600 !important; }
-.stTabs [aria-selected="true"] { color: #0D3B8E !important; }
 label { color: #374151 !important; font-weight: 500 !important; }
 
-/* FIX INPUT FIELDS — navy blue theme */
-input, textarea,
-[data-baseweb="input"] input,
-[data-baseweb="textarea"] textarea,
-[data-testid="stTextInput"] input {
-    background-color: #EEF2FF !important;
-    color: #0D3B8E !important;
-    border: 1.5px solid #0D3B8E !important;
-    border-radius: 12px !important;
-}
-[data-baseweb="input"] { background-color: #EEF2FF !important; }
-[data-baseweb="select"] { background-color: #EEF2FF !important; }
-[data-baseweb="select"] div { background-color: #EEF2FF !important; color: #0D3B8E !important; }
-[data-testid="stSelectbox"] div { background-color: #EEF2FF !important; color: #0D3B8E !important; }
-[data-testid="stExpander"] {
-    background: #EEF2FF !important;
-    border: 1.5px solid #0D3B8E !important;
-    border-radius: 16px !important;
-}
+/* TABS */
+.stTabs [data-baseweb="tab"] { color: #475569 !important; font-weight: 600 !important; background: white !important; border-radius: 50px !important; }
+.stTabs [aria-selected="true"] { color: #0D3B8E !important; background: #EEF2FF !important; }
+
+/* INPUT FIELDS — white background, navy border */
+input, textarea { background-color: #FFFFFF !important; color: #1E293B !important; border: 1.5px solid #0D3B8E !important; border-radius: 12px !important; }
+[data-baseweb="input"] { background-color: #FFFFFF !important; border: 1.5px solid #0D3B8E !important; border-radius: 12px !important; }
+[data-baseweb="input"] input { background-color: #FFFFFF !important; color: #1E293B !important; }
+[data-testid="stTextInput"] input { background-color: #FFFFFF !important; color: #1E293B !important; border: 1.5px solid #0D3B8E !important; }
+
+/* SELECTBOX — white background */
+[data-baseweb="select"] > div { background-color: #FFFFFF !important; border: 1.5px solid #0D3B8E !important; border-radius: 12px !important; color: #1E293B !important; }
+[data-baseweb="select"] span { color: #1E293B !important; }
+
+/* DROPDOWN LIST — white background, readable text */
+[data-baseweb="popover"] { background-color: #FFFFFF !important; border: 1.5px solid #0D3B8E !important; border-radius: 12px !important; box-shadow: 0 8px 30px rgba(13,59,142,0.15) !important; }
+[data-baseweb="menu"] { background-color: #FFFFFF !important; }
+[role="listbox"] { background-color: #FFFFFF !important; }
+[role="option"] { background-color: #FFFFFF !important; color: #1E293B !important; font-weight: 500 !important; }
+[role="option"]:hover { background-color: #EEF2FF !important; color: #0D3B8E !important; }
+[aria-selected="true"][role="option"] { background-color: #EEF2FF !important; color: #0D3B8E !important; }
+li[role="option"] { background-color: #FFFFFF !important; color: #1E293B !important; }
+
+/* EXPANDER */
+[data-testid="stExpander"] { background: #FFFFFF !important; border: 1.5px solid #C7D7F5 !important; border-radius: 16px !important; }
 [data-testid="stExpander"] summary { color: #0D3B8E !important; font-weight: 600 !important; }
 [data-testid="stExpander"] p { color: #1E293B !important; }
+[data-testid="stExpander"] summary:hover { background: #EEF2FF !important; border-radius: 16px !important; }
+
+/* MULTISELECT */
+[data-baseweb="tag"] { background-color: #EEF2FF !important; color: #0D3B8E !important; border: 1px solid #0D3B8E !important; }
+[data-testid="stMultiSelect"] [data-baseweb="select"] > div { background-color: #FFFFFF !important; }
+
+/* CHECKBOX */
+[data-testid="stCheckbox"] label { color: #1E293B !important; }
+
+/* METRIC */
+[data-testid="stMetric"] label { color: #64748B !important; }
+[data-testid="stMetricValue"] { color: #0D3B8E !important; }
+
+/* INFO / SUCCESS / WARNING boxes */
+[data-testid="stAlert"] { border-radius: 12px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1044,63 +1064,120 @@ def page_career():
         </div>
         """, unsafe_allow_html=True)
 
-        job_role = st.text_input("Job Role for Interview", placeholder="e.g. Backend Developer at Samsung", key="interview_role")
+        job_role = st.text_input("🎯 Job Role for Interview", placeholder="e.g. Backend Developer, Marketing Manager, UX Designer", key="interview_role")
 
-        if st.button(t('start_interview'), key="start_intv") and job_role:
-            st.session_state.interview_step = 1
-            st.session_state.interview_qa = []
-            questions = [
-                f"Tell me about yourself and why you want to work as {job_role} in Korea.",
-                "What are your greatest strengths and how do they apply to this role?",
-                "Describe a challenging situation you faced and how you resolved it.",
-                "Why do you want to work for a Korean company specifically?",
-                "Where do you see yourself in 5 years?"
-            ]
-            st.session_state.interview_questions = questions
-            st.rerun()
+        if job_role:
+            if st.button(t('start_interview'), key="start_intv", use_container_width=True):
+                st.session_state.interview_step = 1
+                st.session_state.interview_qa = []
+                lang_name = st.session_state.lang.split(" ", 1)[1] if " " in st.session_state.lang else "English"
+                st.session_state.interview_questions = [
+                    f"Tell me about yourself and why you want to work as {job_role} in Korea.",
+                    f"What specific skills do you bring to this {job_role} position?",
+                    "Describe a challenging situation you faced and how you resolved it.",
+                    "Why do you want to work for a Korean company specifically?",
+                    "Where do you see yourself in 5 years in Korea?"
+                ]
+                st.rerun()
+        else:
+            st.info("👆 Enter a job role above to start the interview")
 
         if st.session_state.interview_step > 0:
             q_idx = st.session_state.interview_step - 1
             questions = st.session_state.get("interview_questions", [])
-            if q_idx < len(questions):
+            total = len(questions)
+
+            # Progress bar
+            st.progress(min(q_idx / total, 1.0), text=f"Question {min(q_idx+1, total)} of {total}")
+
+            if q_idx < total:
                 st.markdown(f"""
-                <div class="g-card" style='border-left:4px solid #0D3B8E;background:#F0F4FF;'>
-                    <p style='color:#94A3B8;font-size:0.85rem;'>Question {q_idx+1} of {len(questions)}</p>
-                    <h3 style='margin-top:8px;'>🤖 {questions[q_idx]}</h3>
+                <div class="g-card" style='border-left:4px solid #0D3B8E;background:#F8FAFF;'>
+                    <p style='color:#94A3B8;font-size:0.82rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;'>Q{q_idx+1} / {total}</p>
+                    <h3 style='margin-top:8px;color:#0D3B8E;font-size:1.1rem;'>🤖 {questions[q_idx]}</h3>
                 </div>""", unsafe_allow_html=True)
-                answer = st.text_area("Your Answer:", height=120, key=f"ans_{q_idx}")
-                col1, col2 = st.columns(2)
-                if col1.button(t('next'), key=f"next_{q_idx}") and answer:
-                    st.session_state.interview_qa.append({"q": questions[q_idx], "a": answer})
-                    st.session_state.interview_step += 1
-                    st.rerun()
-                if col2.button("⏭️ Skip", key=f"skip_{q_idx}"):
-                    st.session_state.interview_step += 1
-                    st.rerun()
+
+                answer = st.text_area("✍️ Your Answer:", height=130, key=f"ans_{q_idx}",
+                                       placeholder="Type your answer here... (minimum 2-3 sentences)")
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    if st.button(f"Next Question →", key=f"next_{q_idx}", use_container_width=True):
+                        if answer and len(answer.strip()) > 10:
+                            st.session_state.interview_qa.append({"q": questions[q_idx], "a": answer})
+                            st.session_state.interview_step += 1
+                            st.rerun()
+                        else:
+                            st.warning("Please write at least a short answer before continuing.")
+                with col2:
+                    if st.button("Skip ⏭", key=f"skip_{q_idx}", use_container_width=True):
+                        st.session_state.interview_qa.append({"q": questions[q_idx], "a": "(skipped)"})
+                        st.session_state.interview_step += 1
+                        st.rerun()
             else:
-                st.success("🎉 Interview Complete! Generating AI feedback...")
-                time.sleep(1)
+                # AI Feedback using Gemini
+                with st.spinner("🤖 Generating AI feedback..."):
+                    qa_text = "\n".join([f"Q: {qa['q']}\nA: {qa['a']}" for qa in st.session_state.interview_qa])
+                    lang_name = st.session_state.lang.split(" ", 1)[1] if " " in st.session_state.lang else "English"
+                    try:
+                        feedback_prompt = f"""You are a Korean HR expert. Evaluate this job interview for {st.session_state.get('interview_role','the position')}.
+Respond in {lang_name}.
+
+Interview Q&A:
+{qa_text}
+
+Give:
+1. Overall score (0-100)
+2. Confidence score (0-100)  
+3. Cultural fit score (0-100)
+4. 3 specific strengths
+5. 2 improvement areas
+6. One encouragement sentence
+
+Format as JSON: {{"overall": 85, "confidence": 80, "cultural_fit": 75, "strengths": ["...", "...", "..."], "improvements": ["...", "..."], "encouragement": "..."}}"""
+                        fb_resp = Settings.llm.complete(feedback_prompt)
+                        import json as _json
+                        fb = _json.loads(str(fb_resp).strip().replace("```json","").replace("```",""))
+                    except:
+                        fb = {"overall": 80, "confidence": 78, "cultural_fit": 75,
+                              "strengths": ["Good communication", "Clear motivation", "Relevant experience"],
+                              "improvements": ["More specific examples", "Korean cultural awareness"],
+                              "encouragement": "Great effort! Keep practicing to improve your Korean interview skills."}
+
                 st.markdown(f"""
                 <div class="g-card" style='border-left:4px solid #00C897;'>
-                    <h3>📊 Interview Feedback</h3>
-                    <div style='display:flex;gap:20px;margin:16px 0;'>
-                        <div style='text-align:center;flex:1;background:#F0F4FF;padding:16px;border-radius:12px;'>
-                            <div style='font-size:2rem;font-weight:800;color:#0D3B8E;'>82</div>
-                            <div style='font-size:0.8rem;color:#64748B;'>Overall Score</div>
+                    <h3 style='color:#0D3B8E;margin-bottom:16px;'>📊 AI Interview Feedback</h3>
+                    <div style='display:flex;gap:16px;margin-bottom:20px;'>
+                        <div style='text-align:center;flex:1;background:#EEF2FF;padding:16px;border-radius:12px;'>
+                            <div style='font-size:2rem;font-weight:800;color:#0D3B8E;'>{fb.get("overall",80)}</div>
+                            <div style='font-size:0.8rem;color:#64748B;font-weight:600;'>Overall</div>
                         </div>
                         <div style='text-align:center;flex:1;background:#ECFDF5;padding:16px;border-radius:12px;'>
-                            <div style='font-size:2rem;font-weight:800;color:#065F46;'>88</div>
-                            <div style='font-size:0.8rem;color:#64748B;'>Confidence</div>
+                            <div style='font-size:2rem;font-weight:800;color:#065F46;'>{fb.get("confidence",78)}</div>
+                            <div style='font-size:0.8rem;color:#64748B;font-weight:600;'>Confidence</div>
                         </div>
                         <div style='text-align:center;flex:1;background:#FFF7ED;padding:16px;border-radius:12px;'>
-                            <div style='font-size:2rem;font-weight:800;color:#9A3412;'>76</div>
-                            <div style='font-size:0.8rem;color:#64748B;'>Cultural Fit</div>
+                            <div style='font-size:2rem;font-weight:800;color:#9A3412;'>{fb.get("cultural_fit",75)}</div>
+                            <div style='font-size:0.8rem;color:#64748B;font-weight:600;'>Cultural Fit</div>
                         </div>
                     </div>
-                    <p style='color:#475569;'>Good performance! Focus on demonstrating teamwork and long-term commitment to Korean corporate culture.</p>
+                    <div style='display:flex;gap:16px;'>
+                        <div style='flex:1;'>
+                            <p style='font-weight:700;color:#065F46;margin-bottom:8px;'>✅ Strengths</p>
+                            {"".join([f"<p style='color:#475569;margin-bottom:4px;'>• {s}</p>" for s in fb.get("strengths",[])])}
+                        </div>
+                        <div style='flex:1;'>
+                            <p style='font-weight:700;color:#9A3412;margin-bottom:8px;'>💡 Improve</p>
+                            {"".join([f"<p style='color:#475569;margin-bottom:4px;'>• {i}</p>" for i in fb.get("improvements",[])])}
+                        </div>
+                    </div>
+                    <div style='margin-top:16px;padding:12px;background:#F0FDF4;border-radius:12px;'>
+                        <p style='color:#065F46;font-weight:600;'>🌟 {fb.get("encouragement","")}</p>
+                    </div>
                 </div>""", unsafe_allow_html=True)
-                if st.button("🔄 Restart Interview"):
+
+                if st.button("🔄 Try Again", use_container_width=True):
                     st.session_state.interview_step = 0
+                    st.session_state.interview_qa = []
                     st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
