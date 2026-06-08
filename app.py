@@ -221,7 +221,7 @@ def t(key): return TR[st.session_state.language].get(key, key)
 
 # LLM / RAG Settings
 try:
-    Settings.llm = Gemini(api_key=st.secrets["GEMINI_API_KEY"], model="models/gemini-1.5-pro")
+    Settings.llm = Gemini(api_key=st.secrets["GEMINI_API_KEY"], model="models/gemini-2.0-flash")
     Settings.embed_model = GeminiEmbedding(api_key=st.secrets["GEMINI_API_KEY"], model_name="models/text-embedding-004")
     supabase: Client = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
     vector_store = SupabaseVectorStore(postgres_connection_string=st.secrets["SUPABASE_DB_CONNECTION"], collection_name="documents")
