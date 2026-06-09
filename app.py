@@ -489,6 +489,210 @@ button[kind="header"], [data-testid="collapsedControl"] {
 """
 st.markdown(CSS, unsafe_allow_html=True)
 
+# ─── Design enhancement layer (premium refresh) ──────────────────────────────
+ENHANCED_CSS = """
+<style>
+:root {
+    --navy: #0B2A6B;
+    --navy-2: #1E50C8;
+    --emerald: #06C684;
+    --orange: #FF6B35;
+    --light: #EEF3FF;
+    --ink: #0F172A;
+    --muted: #64748B;
+    --line: #E6ECF5;
+}
+
+/* Ambient page background */
+.stApp {
+    background:
+        radial-gradient(1200px 500px at 100% -10%, rgba(6,198,132,0.10), transparent 60%),
+        radial-gradient(1000px 500px at -10% 0%, rgba(30,80,200,0.10), transparent 55%),
+        linear-gradient(180deg, #FBFCFF 0%, #F3F6FD 100%);
+}
+.block-container { padding-top: 0.6rem !important; max-width: 1240px; }
+
+/* Sharper headings */
+h1,h2,h3,h4 { letter-spacing: -0.02em; }
+.section-title { font-size: 32px; font-weight: 850; letter-spacing:-0.025em;
+    background: linear-gradient(90deg, var(--ink) 0%, #21407e 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.section-sub { font-size: 15.5px; color: var(--muted); margin: 6px 0 24px 0; }
+
+/* ===== Sticky glass navbar ===== */
+.upk-nav {
+    position: sticky; top: 8px; z-index: 999;
+    background: rgba(255,255,255,0.72);
+    backdrop-filter: saturate(180%) blur(16px);
+    -webkit-backdrop-filter: saturate(180%) blur(16px);
+    border: 1px solid rgba(255,255,255,0.6);
+    box-shadow: 0 10px 30px rgba(13,40,100,0.10);
+    border-radius: 20px; padding: 6px 10px; margin-bottom: 18px;
+}
+.nav-logo { font-size: 25px; font-weight: 900; letter-spacing: -0.03em; padding-left: 6px; }
+.nav-logo .lp { color: var(--navy); }
+.nav-logo .ls { background: linear-gradient(90deg, var(--navy-2), var(--emerald));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+/* Nav buttons → ghost pills with active state via gradient on hover */
+.upk-nav .stButton > button {
+    background: transparent !important;
+    color: var(--muted) !important;
+    box-shadow: none !important;
+    border: 1px solid transparent !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+    font-size: 13.5px !important;
+    padding: 9px 6px !important;
+    transition: all .18s ease;
+}
+.upk-nav .stButton > button:hover {
+    background: rgba(30,80,200,0.08) !important;
+    color: var(--navy) !important;
+    transform: translateY(0) !important;
+    border-color: rgba(30,80,200,0.18) !important;
+}
+.upk-nav-active .stButton > button {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%) !important;
+    color: #fff !important;
+    box-shadow: 0 8px 18px rgba(13,40,100,0.28) !important;
+}
+
+/* ===== Hero refresh ===== */
+.hero {
+    background:
+        radial-gradient(700px 300px at 90% -20%, rgba(255,255,255,0.25), transparent 60%),
+        linear-gradient(135deg, #0B2A6B 0%, #1E50C8 52%, #06C684 120%);
+    border-radius: 30px;
+    padding: 70px 52px 100px 52px;
+    box-shadow: 0 30px 70px rgba(11,42,107,0.32);
+}
+.hero::before {
+    content:""; position:absolute; left:-60px; bottom:-80px;
+    width:260px; height:260px; border-radius:50%;
+    background: radial-gradient(circle, rgba(6,198,132,0.35), transparent 70%);
+}
+.hero h1 { font-size: 56px; font-weight: 900; }
+.hero-badge { background: rgba(255,255,255,0.16); border:1px solid rgba(255,255,255,0.35);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.10); }
+
+/* ===== KPI cards ===== */
+.kpi-wrap { gap: 20px; margin-top: -68px; }
+.kpi-card {
+    border-radius: 22px; padding: 26px 20px;
+    border: 1px solid rgba(255,255,255,0.7);
+    border-bottom: 4px solid var(--emerald);
+    box-shadow: 0 18px 40px rgba(13,40,100,0.10);
+    background: linear-gradient(180deg, #FFFFFF, #FBFDFF);
+}
+.kpi-card:hover { transform: translateY(-8px); box-shadow: 0 26px 55px rgba(13,40,100,0.18); }
+.kpi-value { font-size: 38px; font-weight: 900;
+    background: linear-gradient(135deg, var(--navy), var(--navy-2));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.kpi-icon { filter: drop-shadow(0 4px 8px rgba(13,40,100,0.18)); }
+
+/* ===== Cards everywhere — softer, deeper ===== */
+.upk-card, .link-card, .reason-card, .news-card, .portal-card, .metric-box,
+.flow-step, .job-card, .visa-card, .stat-box {
+    border-radius: 20px !important;
+    border: 1px solid var(--line) !important;
+    box-shadow: 0 12px 30px rgba(13,40,100,0.06) !important;
+    background: linear-gradient(180deg,#FFFFFF, #FCFDFF) !important;
+}
+.upk-card:hover, .reason-card:hover, .news-card:hover, .flow-step:hover,
+.job-card:hover, .portal-card:hover, .link-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 22px 48px rgba(13,40,100,0.14) !important;
+    border-color: rgba(30,80,200,0.25) !important;
+}
+.upk-card h3 { font-size: 19px; font-weight: 800; }
+
+/* Flow numbers + accent */
+.flow-num { box-shadow: 0 10px 22px rgba(6,198,132,0.32); }
+.flow-arrow { color: var(--navy-2); font-weight: 800; }
+
+/* ===== Tabs → modern segmented control ===== */
+.stTabs [data-baseweb="tab-list"] {
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(8px);
+    padding: 6px; border-radius: 16px;
+    border: 1px solid var(--line);
+    box-shadow: 0 8px 22px rgba(13,40,100,0.06);
+}
+.stTabs [data-baseweb="tab"] {
+    border: none !important; background: transparent !important;
+    border-radius: 11px !important; padding: 9px 18px !important;
+}
+.stTabs [data-baseweb="tab"]:hover { background: rgba(30,80,200,0.07) !important; }
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(135deg, var(--navy), var(--navy-2)) !important;
+    color: #fff !important; box-shadow: 0 8px 18px rgba(13,40,100,0.25) !important;
+}
+
+/* ===== Buttons — refined ===== */
+.stButton > button {
+    border-radius: 14px; font-weight: 700;
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%);
+    box-shadow: 0 10px 22px rgba(13,40,100,0.22);
+}
+.stButton > button:hover { transform: translateY(-2px); box-shadow: 0 16px 32px rgba(13,40,100,0.30); }
+
+/* ===== Inputs ===== */
+.stTextInput input, .stTextArea textarea, .stDateInput input {
+    border: 1.5px solid #D7E0F0 !important; border-radius: 14px !important;
+    box-shadow: 0 2px 8px rgba(13,40,100,0.04) !important;
+}
+.stTextInput input:focus, .stTextArea textarea:focus {
+    border-color: var(--navy-2) !important;
+    box-shadow: 0 0 0 4px rgba(30,80,200,0.14) !important;
+}
+.stSelectbox div[data-baseweb="select"] > div,
+.stMultiSelect div[data-baseweb="select"] > div {
+    border: 1.5px solid #D7E0F0 !important; border-radius: 14px !important;
+}
+
+/* ===== Tags / badges — pill polish ===== */
+.tag { border-radius: 999px; padding: 5px 13px; font-weight: 700; font-size: 12px; }
+.badge { padding: 5px 13px; }
+
+/* Link rows */
+.link-row { border-radius: 12px; font-weight: 600; }
+.link-row:hover { background: linear-gradient(90deg, rgba(30,80,200,0.08), rgba(6,198,132,0.08)); }
+
+/* Tables */
+.upk-table { border-radius: 18px; box-shadow: 0 12px 30px rgba(13,40,100,0.07); }
+.upk-table th { background: linear-gradient(135deg, var(--navy), var(--navy-2)); }
+
+/* Stat numbers */
+.stat-big { background: linear-gradient(135deg, var(--navy-2), var(--emerald));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+
+/* Sidebar polish */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #0B2A6B 0%, #082356 100%) !important;
+    border-right: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Visa card */
+.visa-card { background: linear-gradient(160deg,#FFFFFF 0%, #F4F8FF 100%) !important;
+    box-shadow: 0 22px 50px rgba(13,40,100,0.10) !important; }
+.visa-head .vi { box-shadow: 0 12px 26px rgba(11,42,107,0.30); }
+
+/* Soft entrance animation for content */
+.block-container .element-container { animation: fadeUp .5s ease both; }
+@keyframes fadeUp { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform:none; } }
+
+/* Divider */
+.soft-divider { margin: 30px 0; background: linear-gradient(90deg,transparent, #D7E0F0, transparent); }
+
+@media (max-width: 980px) {
+    .hero h1 { font-size: 36px; }
+    .hero { padding: 48px 28px 84px 28px; }
+}
+</style>
+"""
+st.markdown(ENHANCED_CSS, unsafe_allow_html=True)
+
 # ════════════════════════════════════════════════════════════════════════════
 # 4. MULTILINGUAL SYSTEM — 9 LANGUAGES
 # ════════════════════════════════════════════════════════════════════════════
@@ -1451,6 +1655,85 @@ def parse_json_block(text):
     return None
 
 
+def parse_json_array(text):
+    """Best-effort extraction of a JSON array from an LLM response."""
+    if not text:
+        return None
+    try:
+        v = json.loads(text)
+        return v if isinstance(v, list) else None
+    except Exception:
+        pass
+    m = re.search(r"\[.*\]", text, re.DOTALL)
+    if m:
+        try:
+            v = json.loads(m.group(0))
+            return v if isinstance(v, list) else None
+        except Exception:
+            return None
+    return None
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# CONTENT TRANSLATION ENGINE (AI-cached, batched)
+# ────────────────────────────────────────────────────────────────────────────
+# UI labels live in the TR dictionary (t()). Free-form descriptive content is
+# authored once in English and translated on demand by the LLM, cached per
+# (text, language) for 24h so a language switch costs at most one batched call
+# per block and is instant on every later render. Fixed values — addresses from
+# the database, prices in KRW, phone numbers, brand and app names — are NOT sent
+# through here; they are rendered as literals so they never change.
+# ════════════════════════════════════════════════════════════════════════════
+@st.cache_data(ttl=86400, show_spinner=False)
+def _tb_cached(items_tuple, lang):
+    items = list(items_tuple)
+    # English (or AI unavailable) → identity map, no cost.
+    if lang == "🇺🇸 English" or not AI_READY or not items:
+        return {s: s for s in items}
+    lang_name = lang.split(" ", 1)[1] if " " in lang else "English"
+    try:
+        numbered = "\n".join(f"{i+1}. {s}" for i, s in enumerate(items))
+        prompt = (
+            f"You are a professional UI localizer. Translate each numbered line into {lang_name}, "
+            "natural and fluent for an app aimed at international students in Korea. "
+            "Keep unchanged: brand/app/product names, proper nouns, place names, numbers, prices, "
+            "currency (KRW), phone numbers, visa codes (e.g. D-2), URLs and emojis. "
+            "Preserve any leading symbols/bullets and HTML tags exactly. "
+            f"Return ONLY a JSON array of {len(items)} strings, in the same order, no commentary.\n\n"
+            + numbered
+        )
+        raw = str(Settings.llm.complete(prompt)).strip()
+        arr = parse_json_array(raw)
+        if isinstance(arr, list) and len(arr) == len(items):
+            return {s: (str(arr[i]) if arr[i] is not None else s) for i, s in enumerate(items)}
+    except Exception:
+        pass
+    return {s: s for s in items}
+
+
+def TB(items):
+    """Batch-translate a list of English strings into the current language.
+
+    Returns a dict {english: translated}. Cached, so repeated renders are free.
+    """
+    items = [str(x) for x in items]
+    lang = st.session_state.get("lang", "🇺🇸 English")
+    return _tb_cached(tuple(items), lang)
+
+
+def T(text):
+    """Translate a single English string into the current language (cached)."""
+    if text is None:
+        return ""
+    return TB([text]).get(str(text), str(text))
+
+
+def _resp_lang():
+    """Human-readable name of the current language, for LLM 'respond in X' prompts."""
+    lang = st.session_state.get("lang", "🇺🇸 English")
+    return lang.split(" ", 1)[1] if " " in lang else "English"
+
+
 # ─── small UI helpers ────────────────────────────────────────────────────────
 def card_open(extra=""):
     st.markdown(f'<div class="upk-card" style="{extra}">', unsafe_allow_html=True)
@@ -1460,7 +1743,10 @@ def card_close():
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-def section_header(title, sub=""):
+def section_header(title, sub="", translate_sub=True):
+    # Subtitles are usually authored in English here, so auto-translate them.
+    if sub and translate_sub:
+        sub = T(sub)
     html = f'<div class="section-title">{title}</div>'
     if sub:
         html += f'<div class="section-sub">{sub}</div>'
@@ -1486,20 +1772,28 @@ NAV_ITEMS = [
 
 
 def render_nav():
-    st.markdown(
-        '<div class="nav-logo">🎓 Uni<span>Path</span></div>',
-        unsafe_allow_html=True,
-    )
-    cols = st.columns([1.0] * len(NAV_ITEMS) + [1.4, 1.0])
+    st.markdown('<div class="upk-nav">', unsafe_allow_html=True)
+    logo_col, nav_col, lang_col, auth_col = st.columns([1.7, 6.0, 1.5, 1.1])
 
-    for i, (page, key) in enumerate(NAV_ITEMS):
-        with cols[i]:
-            label = t(key)
-            if st.button(label, key=f"nav_{page}", use_container_width=True):
-                goto(page)
+    with logo_col:
+        st.markdown(
+            '<div class="nav-logo">🎓 <span class="lp">Uni</span><span class="ls">Path</span></div>',
+            unsafe_allow_html=True,
+        )
 
-    # Language selector
-    with cols[len(NAV_ITEMS)]:
+    with nav_col:
+        ncols = st.columns(len(NAV_ITEMS))
+        for i, (page, key) in enumerate(NAV_ITEMS):
+            with ncols[i]:
+                active = st.session_state.page == page
+                if active:
+                    st.markdown('<div class="upk-nav-active">', unsafe_allow_html=True)
+                if st.button(t(key), key=f"nav_{page}", use_container_width=True):
+                    goto(page)
+                if active:
+                    st.markdown('</div>', unsafe_allow_html=True)
+
+    with lang_col:
         new_lang = st.selectbox(
             t("language"),
             LANGUAGES,
@@ -1511,18 +1805,17 @@ def render_nav():
             st.session_state.lang = new_lang
             st.rerun()
 
-    # Auth button
-    with cols[len(NAV_ITEMS) + 1]:
+    with auth_col:
         if st.session_state.user:
             name = st.session_state.user.get("name", "Me")
-            short = (name[:8] + "…") if len(name) > 9 else name
+            short = (name[:7] + "…") if len(name) > 8 else name
             if st.button(f"👤 {short}", key="nav_profile", use_container_width=True):
                 goto("PROFILE")
         else:
-            if st.button("🔑", key="nav_auth", use_container_width=True):
+            if st.button(f"🔑 {t('login')}", key="nav_auth", use_container_width=True):
                 goto("AUTH")
 
-    divider()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -1571,8 +1864,11 @@ JOB_PORTALS = [
 
 
 def _link_card(title, links):
+    # Translate the link labels (descriptive text); URLs and brand names are kept.
+    tx = TB([name for name, _ in links])
     rows = "".join(
-        f'<a class="link-row" href="{url}" target="_blank">🔗 {name}</a>' for name, url in links
+        f'<a class="link-row" href="{url}" target="_blank">🔗 {tx.get(name, name)}</a>'
+        for name, url in links
     )
     st.markdown(f'<div class="link-card"><h4>{title}</h4>{rows}</div>', unsafe_allow_html=True)
 
@@ -1639,14 +1935,14 @@ def page_home():
         # AI assistant CTA
         st.markdown(
             f'<div style="text-align:center;margin:10px 0 26px 0;">'
-            f'<span class="chat-cta">{t("ask_ai")} — open the sidebar →</span></div>',
+            f'<span class="chat-cta">{t("ask_ai")} — {T("open the sidebar")} →</span></div>',
             unsafe_allow_html=True,
         )
 
         divider()
 
         # Feature cards
-        section_header("Explore the Platform", t("plan_sub"))
+        section_header(T("Explore the Platform"), t("plan_sub"))
         fc1, fc2, fc3 = st.columns(3)
         with fc1:
             st.markdown(
@@ -1702,24 +1998,27 @@ def page_home():
     # ───────────────────────── TAB 2: WHY KOREA ─────────────────────────
     with tabs[1]:
         section_header(t("why_korea"), "A safe, world-class destination for your education")
+        caps = ["International Students in Korea", "Korean Universities in World Top 100",
+                "Fastest Internet Speed Globally", "Countries Reached by K-Culture"]
+        tc = TB(caps)
         st.markdown(
-            """
+            f"""
             <div class="stat-grid">
                 <div class="stat-box"><div class="stat-big">160,000+</div>
-                    <div class="stat-cap">International Students in Korea</div></div>
+                    <div class="stat-cap">{tc.get(caps[0], caps[0])}</div></div>
                 <div class="stat-box"><div class="stat-big">3</div>
-                    <div class="stat-cap">Korean Universities in World Top 100</div></div>
+                    <div class="stat-cap">{tc.get(caps[1], caps[1])}</div></div>
                 <div class="stat-box"><div class="stat-big">#1</div>
-                    <div class="stat-cap">Fastest Internet Speed Globally</div></div>
+                    <div class="stat-cap">{tc.get(caps[2], caps[2])}</div></div>
                 <div class="stat-box"><div class="stat-big">100+</div>
-                    <div class="stat-cap">Countries Reached by K-Culture</div></div>
+                    <div class="stat-cap">{tc.get(caps[3], caps[3])}</div></div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
         divider()
-        section_header("Six Reasons to Choose Korea")
+        section_header(T("Six Reasons to Choose Korea"), translate_sub=False)
         reasons = [
             ("🛡️", "Safety", "Among the safest countries in the world, with low crime and 24/7 convenience."),
             ("🎓", "Education Quality", "Globally ranked universities with strong STEM, business and arts programs."),
@@ -1728,6 +2027,7 @@ def page_home():
             ("💰", "Affordable Living", "Generous scholarships and reasonable costs compared to the US/EU."),
             ("🚀", "Advanced Technology", "5G everywhere, smart cities, and cutting-edge research facilities."),
         ]
+        rtx = TB([r[1] for r in reasons] + [r[2] for r in reasons])
         r1 = st.columns(3)
         r2 = st.columns(3)
         for i, (icon, title, desc) in enumerate(reasons):
@@ -1735,7 +2035,7 @@ def page_home():
             with col:
                 st.markdown(
                     f'<div class="reason-card"><div class="ri">{icon}</div>'
-                    f'<h4>{title}</h4><p>{desc}</p></div>',
+                    f'<h4>{rtx.get(title, title)}</h4><p>{rtx.get(desc, desc)}</p></div>',
                     unsafe_allow_html=True,
                 )
                 st.write("")
@@ -1979,43 +2279,42 @@ def page_university():
     # ───────────── TAB 2: SCHOOL INFO ─────────────
     with tabs[1]:
         section_header(t("uni_school"), "Graduation requirements, documents and deadlines")
+        L = [
+            "Graduation Requirements (typical)",
+            "• Complete required credits (usually 130+ for bachelor's)",
+            "• Maintain minimum GPA (often 2.0/4.5 or higher)",
+            "• Pass a graduation thesis or capstone project",
+            "• Meet Korean language milestones (TOPIK level often required)",
+            "• Fulfill mandatory liberal arts / major core courses",
+            "Required Documents Checklist",
+            "☑ Completed application form", "☑ Passport copy & passport photos",
+            "☑ High school / bachelor's diploma & transcripts (apostilled)",
+            "☑ Proof of language ability (TOPIK / IELTS / TOEFL)",
+            "☑ Statement of purpose & study plan", "☑ Recommendation letters (1–2)",
+            "☑ Financial proof (bank statement)", "☑ Family relationship certificate",
+            "Important Deadlines (general)", "Intake", "Application Period", "Notes",
+            "Spring (March)", "September – November", "Most popular intake",
+            "Fall (September)", "March – May", "Smaller programs",
+            "GKS (Government)", "February – March (embassy)", "One round per year",
+        ]
+        tx = TB(L)
+        x = lambda s: tx.get(s, s)
         c1, c2 = st.columns(2)
-        with c1:
-            st.markdown(
-                """
-                <div class="upk-card"><h3>🎓 Graduation Requirements (typical)</h3>
-                <p>• Complete required credits (usually 130+ for bachelor's)<br>
-                • Maintain minimum GPA (often 2.0/4.5 or higher)<br>
-                • Pass a graduation thesis or capstone project<br>
-                • Meet Korean language milestones (TOPIK level often required)<br>
-                • Fulfill mandatory liberal arts / major core courses</p></div>
-                """,
-                unsafe_allow_html=True,
-            )
-        with c2:
-            st.markdown(
-                """
-                <div class="upk-card"><h3>📋 Required Documents Checklist</h3>
-                <p>☑ Completed application form<br>
-                ☑ Passport copy & passport photos<br>
-                ☑ High school / bachelor's diploma & transcripts (apostilled)<br>
-                ☑ Proof of language ability (TOPIK / IELTS / TOEFL)<br>
-                ☑ Statement of purpose & study plan<br>
-                ☑ Recommendation letters (1–2)<br>
-                ☑ Financial proof (bank statement)<br>
-                ☑ Family relationship certificate</p></div>
-                """,
-                unsafe_allow_html=True,
-            )
+        grad = "<br>".join(x(s) for s in L[1:6])
+        c1.markdown(f'<div class="upk-card"><h3>🎓 {x(L[0])}</h3><p>{grad}</p></div>',
+                    unsafe_allow_html=True)
+        docs = "<br>".join(x(s) for s in L[7:15])
+        c2.markdown(f'<div class="upk-card"><h3>📋 {x(L[6])}</h3><p>{docs}</p></div>',
+                    unsafe_allow_html=True)
         divider()
         st.markdown(
-            """
-            <div class="upk-card"><h3>🗓️ Important Deadlines (general)</h3>
+            f"""
+            <div class="upk-card"><h3>🗓️ {x("Important Deadlines (general)")}</h3>
             <table class="upk-table">
-                <tr><th>Intake</th><th>Application Period</th><th>Notes</th></tr>
-                <tr><td>Spring (March)</td><td>September – November</td><td>Most popular intake</td></tr>
-                <tr><td>Fall (September)</td><td>March – May</td><td>Smaller programs</td></tr>
-                <tr><td>GKS (Government)</td><td>February – March (embassy)</td><td>One round per year</td></tr>
+                <tr><th>{x("Intake")}</th><th>{x("Application Period")}</th><th>{x("Notes")}</th></tr>
+                <tr><td>{x("Spring (March)")}</td><td>{x("September – November")}</td><td>{x("Most popular intake")}</td></tr>
+                <tr><td>{x("Fall (September)")}</td><td>{x("March – May")}</td><td>{x("Smaller programs")}</td></tr>
+                <tr><td>{x("GKS (Government)")}</td><td>{x("February – March (embassy)")}</td><td>{x("One round per year")}</td></tr>
             </table></div>
             """,
             unsafe_allow_html=True,
@@ -2024,30 +2323,36 @@ def page_university():
     # ───────────── TAB 3: APPLY ─────────────
     with tabs[2]:
         section_header(t("uni_apply"), "Your application timeline at a glance")
+        L = [
+            "Research", "Shortlist 3–5 universities", "Prepare Docs", "Apostille & translate",
+            "Submit", "Online + courier", "Interview", "Online / on-site",
+            "Offer & Visa", "CoA → D-2 visa", "Ask AI for guidance", "Download Checklist",
+        ]
+        x = (lambda m: (lambda s: m.get(s, s)))(TB(L))
         st.markdown(
             f"""
             <div class="flow-wrap">
-                <div class="flow-step"><div class="flow-num">1</div><h4>Research</h4>
-                    <p>Shortlist 3–5 universities</p></div>
+                <div class="flow-step"><div class="flow-num">1</div><h4>{x("Research")}</h4>
+                    <p>{x("Shortlist 3–5 universities")}</p></div>
                 <div class="flow-arrow">→</div>
-                <div class="flow-step"><div class="flow-num">2</div><h4>Prepare Docs</h4>
-                    <p>Apostille & translate</p></div>
+                <div class="flow-step"><div class="flow-num">2</div><h4>{x("Prepare Docs")}</h4>
+                    <p>{x("Apostille & translate")}</p></div>
                 <div class="flow-arrow">→</div>
-                <div class="flow-step"><div class="flow-num">3</div><h4>Submit</h4>
-                    <p>Online + courier</p></div>
+                <div class="flow-step"><div class="flow-num">3</div><h4>{x("Submit")}</h4>
+                    <p>{x("Online + courier")}</p></div>
                 <div class="flow-arrow">→</div>
-                <div class="flow-step"><div class="flow-num">4</div><h4>Interview</h4>
-                    <p>Online / on-site</p></div>
+                <div class="flow-step"><div class="flow-num">4</div><h4>{x("Interview")}</h4>
+                    <p>{x("Online / on-site")}</p></div>
                 <div class="flow-arrow">→</div>
-                <div class="flow-step"><div class="flow-num">5</div><h4>Offer & Visa</h4>
-                    <p>CoA → D-2 visa</p></div>
+                <div class="flow-step"><div class="flow-num">5</div><h4>{x("Offer & Visa")}</h4>
+                    <p>{x("CoA → D-2 visa")}</p></div>
             </div>
             """,
             unsafe_allow_html=True,
         )
         cc1, cc2 = st.columns([1, 1])
         with cc1:
-            if st.button("💬 Ask AI for guidance", key="uni_ask_ai", use_container_width=True):
+            if st.button(f"💬 {x('Ask AI for guidance')}", key="uni_ask_ai", use_container_width=True):
                 st.session_state.chat_history.append(
                     {"role": "user", "content": "How do I apply to a Korean university step by step?"})
                 with st.spinner(t("loading")):
@@ -2064,26 +2369,31 @@ def page_university():
                 "[ ] Statement of purpose\n[ ] Study plan\n[ ] Recommendation letters\n"
                 "[ ] Financial proof\n[ ] Family relationship certificate\n[ ] Application fee paid\n"
             )
-            st.download_button("⬇️ Download Checklist", checklist,
+            st.download_button(f"⬇️ {x('Download Checklist')}", checklist,
                                "unipath_checklist.txt", use_container_width=True)
 
     # ───────────── TAB 4: ADMISSION ─────────────
     with tabs[3]:
         section_header(t("uni_admission"), "GKS and university scholarships")
+        L = [
+            "Global Korea Scholarship (GKS / KGSP)",
+            "The flagship Korean government scholarship fully funds international students.",
+            "✅ Full tuition coverage", "✅ Monthly stipend (~900,000 KRW graduate)",
+            "✅ Round-trip airfare", "✅ One-year Korean language training",
+            "✅ Settlement & research allowance", "✅ Medical insurance",
+            "<b>Two tracks:</b> Embassy track (apply via Korean embassy in your country) and "
+            "University track (apply directly to a designated university).",
+            "GKS Application Portal",
+        ]
+        x = (lambda m: (lambda s: m.get(s, s)))(TB(L))
+        perks = "<br>".join(x(s) for s in L[2:8])
         st.markdown(
-            """
-            <div class="upk-card"><h3>🌟 Global Korea Scholarship (GKS / KGSP)</h3>
-            <p>The flagship Korean government scholarship fully funds international students.</p>
-            <p>✅ Full tuition coverage<br>✅ Monthly stipend (~900,000 KRW graduate)<br>
-            ✅ Round-trip airfare<br>✅ One-year Korean language training<br>
-            ✅ Settlement & research allowance<br>✅ Medical insurance</p>
-            <p><b>Two tracks:</b> Embassy track (apply via Korean embassy in your country) and
-            University track (apply directly to a designated university).</p></div>
-            """,
+            f'<div class="upk-card"><h3>🌟 {x(L[0])}</h3>'
+            f'<p>{x(L[1])}</p><p>{perks}</p><p>{x(L[8])}</p></div>',
             unsafe_allow_html=True,
         )
         st.markdown('<a class="link-row" style="text-align:center;background:#EEF2FF;margin-top:12px;" '
-                    'href="https://www.studyinkorea.go.kr" target="_blank">🌐 GKS Application Portal →</a>',
+                    f'href="https://www.studyinkorea.go.kr" target="_blank">🌐 {x("GKS Application Portal")} →</a>',
                     unsafe_allow_html=True)
 
     # ───────────── TAB 5: SCHOLARSHIPS ─────────────
@@ -2153,6 +2463,7 @@ def page_career():
                         prompt = (
                             "You are an expert career coach for the South Korean job market. "
                             f"Analyze this CV for the target role: '{target or 'general'}'. "
+                            f"Write all string values (recommendations, korean_tips) in {_resp_lang()}. "
                             "Return ONLY valid JSON with keys: overall (0-100 int), grammar (0-100 int), "
                             "structure (0-100 int), recommendations (list of 4-6 short strings), "
                             "korean_tips (list of 3-4 short strings about Korean workplace expectations).\n\n"
@@ -2221,11 +2532,13 @@ def page_career():
         questions = st.session_state.interview_questions or INTERVIEW_QUESTIONS
 
         if 0 < step <= len(questions):
-            st.progress(step / len(questions), text=f"Question {step} / {len(questions)}")
+            qword = T("Question")
+            st.progress(step / len(questions), text=f"{qword} {step} / {len(questions)}")
             q = questions[step - 1]
             st.markdown(
                 f'<div class="upk-card" style="border-left:5px solid var(--navy);">'
-                f'<h3>❓ Question {step}</h3><p style="font-size:16px;color:var(--ink);">{q}</p></div>',
+                f'<h3>❓ {qword} {step}</h3>'
+                f'<p style="font-size:16px;color:var(--ink);">{T(q)}</p></div>',
                 unsafe_allow_html=True,
             )
             answer = st.text_area(t("iv_answer"), placeholder=t("iv_answer_ph"),
@@ -2253,7 +2566,9 @@ def page_career():
                         for i, x in enumerate(st.session_state.interview_qa))
                     prompt = (
                         f"You are an interview coach for the Korean job market. The candidate applied for "
-                        f"'{role or 'a role'}'. Evaluate their mock interview answers. Return ONLY valid JSON "
+                        f"'{role or 'a role'}'. Evaluate their mock interview answers. "
+                        f"Write all string values (strengths, improvements, encouragement) in {_resp_lang()}. "
+                        "Return ONLY valid JSON "
                         "with keys: overall (0-100 int), confidence (0-100 int), cultural_fit (0-100 int), "
                         "strengths (list of 3-4 strings), improvements (list of 3-4 strings), "
                         "encouragement (one warm sentence).\n\n" + qa_text
@@ -2313,37 +2628,43 @@ def page_career():
     # ───────────── TAB 3: RESOURCES ─────────────
     with tabs[2]:
         section_header(t("career_res"), "Tools, culture tips and salary guidance")
+        L = [
+            "Career Tools", "Wanted — Tech Jobs", "LinkedIn Korea",
+            "Rocketpunch — Startups", "Korean Resume Templates", "Work24 Career Services",
+            "Korean Work Culture Tips",
+            "• <b>Hierarchy (직급):</b> Respect seniority and use formal titles.",
+            "• <b>Nunchi (눈치):</b> Read the room and social cues.",
+            "• <b>Teamwork:</b> Group harmony is valued over individual spotlight.",
+            "• <b>Punctuality:</b> Always arrive early; lateness is frowned upon.",
+            "• <b>After-work (회식):</b> Team dinners help build relationships.",
+            "Salary Negotiation Guide",
+            "• Research market rates on Wanted, JobPlanet and Blind.",
+            "• Entry-level office roles often start around 30–40M KRW/year.",
+            "• Negotiate total package: base, bonus (성과급), severance (퇴직금), housing.",
+            "• For E-7 visas, salary must meet the legal minimum threshold.",
+            "• Be polite and data-driven — aggressive negotiation is uncommon.",
+        ]
+        tx = TB(L)
+        x = lambda s: tx.get(s, s)
         rc1, rc2 = st.columns(2)
         with rc1:
-            _link_card("🧰 Career Tools", [
-                ("Wanted — Tech Jobs", "https://www.wanted.co.kr"),
-                ("LinkedIn Korea", "https://www.linkedin.com"),
-                ("Rocketpunch — Startups", "https://www.rocketpunch.com"),
-                ("Korean Resume Templates", "https://www.saramin.co.kr"),
-                ("Work24 Career Services", "https://www.work.go.kr"),
+            _link_card(f"🧰 {x('Career Tools')}", [
+                (x("Wanted — Tech Jobs"), "https://www.wanted.co.kr"),
+                (x("LinkedIn Korea"), "https://www.linkedin.com"),
+                (x("Rocketpunch — Startups"), "https://www.rocketpunch.com"),
+                (x("Korean Resume Templates"), "https://www.saramin.co.kr"),
+                (x("Work24 Career Services"), "https://www.work.go.kr"),
             ])
         with rc2:
+            tips = "<br>".join(x(s) for s in L[7:12])
             st.markdown(
-                """
-                <div class="upk-card"><h3>🏢 Korean Work Culture Tips</h3>
-                <p>• <b>Hierarchy (직급):</b> Respect seniority and use formal titles.<br>
-                • <b>Nunchi (눈치):</b> Read the room and social cues.<br>
-                • <b>Teamwork:</b> Group harmony is valued over individual spotlight.<br>
-                • <b>Punctuality:</b> Always arrive early; lateness is frowned upon.<br>
-                • <b>After-work (회식):</b> Team dinners help build relationships.</p></div>
-                """,
+                f'<div class="upk-card"><h3>🏢 {x("Korean Work Culture Tips")}</h3><p>{tips}</p></div>',
                 unsafe_allow_html=True,
             )
         divider()
+        sal = "<br>".join(x(s) for s in L[13:18])
         st.markdown(
-            """
-            <div class="upk-card"><h3>💵 Salary Negotiation Guide</h3>
-            <p>• Research market rates on Wanted, JobPlanet and Blind.<br>
-            • Entry-level office roles often start around 30–40M KRW/year.<br>
-            • Negotiate total package: base, bonus (성과급), severance (퇴직금), housing.<br>
-            • For E-7 visas, salary must meet the legal minimum threshold.<br>
-            • Be polite and data-driven — aggressive negotiation is uncommon.</p></div>
-            """,
+            f'<div class="upk-card"><h3>💵 {x("Salary Negotiation Guide")}</h3><p>{sal}</p></div>',
             unsafe_allow_html=True,
         )
 
@@ -2486,13 +2807,14 @@ def page_job():
 
     # ───────────── TAB 3: PORTALS ─────────────
     with tabs[2]:
-        section_header(t("job_portals_tab"), t("job_portals"))
+        section_header(t("job_portals_tab"), t("job_portals"), translate_sub=False)
+        tx = TB([desc for _, _, desc in JOB_PORTALS])
         cols = st.columns(3)
         for i, (name, url, desc) in enumerate(JOB_PORTALS):
             with cols[i % 3]:
                 st.markdown(
                     f'<a class="portal-card" href="{url}" target="_blank" style="display:block;">'
-                    f'<h4>🔗 {name}</h4><p>{desc}</p>'
+                    f'<h4>🔗 {name}</h4><p>{tx.get(desc, desc)}</p>'
                     f'<span class="tag tag-navy">{t("visit")} →</span></a>',
                     unsafe_allow_html=True,
                 )
@@ -2549,8 +2871,9 @@ def page_topik():
                 """,
                 unsafe_allow_html=True,
             )
-        st.markdown('<div class="glass-note" style="margin-top:14px;">📌 Source: topik.go.kr official schedule. '
-                    'Always confirm dates on the official website.</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="glass-note" style="margin-top:14px;">📌 '
+                    f'{T("Source: topik.go.kr official schedule. Always confirm dates on the official website.")}'
+                    '</div>', unsafe_allow_html=True)
 
     # ───────────── TAB 2: REGISTER ─────────────
     with tabs[1]:
@@ -2564,12 +2887,13 @@ def page_topik():
             ("Download admission ticket", "Print or save your admission ticket (수험표)."),
             ("Bring passport + ticket", "On exam day, bring your passport and admission ticket."),
         ]
+        stx = TB([s[0] for s in steps] + [s[1] for s in steps] + ["Format"])
         for i, (title, desc) in enumerate(steps, 1):
             st.markdown(
                 f'<div class="upk-card" style="margin-bottom:10px;display:flex;gap:16px;align-items:center;">'
                 f'<div class="flow-num" style="margin:0;flex-shrink:0;">{i}</div>'
-                f'<div><h4 style="margin:0 0 4px 0;">{title}</h4>'
-                f'<p style="margin:0;color:var(--muted);">{desc}</p></div></div>',
+                f'<div><h4 style="margin:0 0 4px 0;">{stx.get(title, title)}</h4>'
+                f'<p style="margin:0;color:var(--muted);">{stx.get(desc, desc)}</p></div></div>',
                 unsafe_allow_html=True,
             )
         divider()
@@ -2577,7 +2901,7 @@ def page_topik():
             f"""
             <div class="upk-card"><h3>💳 {t('topik_fee')}</h3>
             <table class="upk-table">
-                <tr><th>Format</th><th>TOPIK I</th><th>TOPIK II</th></tr>
+                <tr><th>{stx.get("Format", "Format")}</th><th>TOPIK I</th><th>TOPIK II</th></tr>
                 <tr><td>PBT (Paper)</td><td>40,000 KRW</td><td>55,000 KRW</td></tr>
                 <tr><td>IBT (Internet)</td><td>70,000 KRW</td><td>95,000 KRW</td></tr>
             </table></div>
@@ -2616,11 +2940,12 @@ def page_topik():
                     st.write("")
 
         divider()
-        section_header("Test Format")
+        section_header(T("Test Format"), translate_sub=False)
         struct = load_topik_structure()
         if not struct:
             st.info(t("empty"))
         else:
+            th = TB(["Type", "Section", "Duration", "Questions", "Max Score"])
             body = "".join(
                 f"<tr><td>{_gf(s, 'type', 'test_type')}</td><td>{_gf(s, 'section')}</td>"
                 f"<td>{_gf(s, 'duration')}</td><td>{_gf(s, 'questions')}</td>"
@@ -2628,13 +2953,15 @@ def page_topik():
                 for s in struct
             )
             st.markdown(
-                f'<table class="upk-table"><tr><th>Type</th><th>Section</th><th>Duration</th>'
-                f'<th>Questions</th><th>Max Score</th></tr>{body}</table>',
+                f'<table class="upk-table"><tr><th>{th.get("Type","Type")}</th>'
+                f'<th>{th.get("Section","Section")}</th><th>{th.get("Duration","Duration")}</th>'
+                f'<th>{th.get("Questions","Questions")}</th><th>{th.get("Max Score","Max Score")}</th></tr>'
+                f'{body}</table>',
                 unsafe_allow_html=True,
             )
 
         divider()
-        section_header("FAQ")
+        section_header(T("FAQ"), translate_sub=False)
         faqs = load_topik_faq()
         if not faqs:
             st.info(t("empty"))
@@ -2650,29 +2977,32 @@ def page_topik():
         section_header(t("topik_tips"), "Resources and a study timeline")
         rc1, rc2 = st.columns(2)
         with rc1:
-            _link_card("📚 Free Resources", [
+            _link_card(f"📚 {T('Free Resources')}", [
                 ("Free Past Papers (TOPIK Guide)", "https://www.topikguide.com"),
                 ("Official TOPIK Samples", "https://www.topik.go.kr"),
                 ("Korean News (Easy)", "https://www.kbs.co.kr"),
                 ("Naver Korean Dictionary", "https://dict.naver.com"),
             ])
         with rc2:
-            _link_card("📱 Mobile Apps", [
+            _link_card(f"📱 {T('Mobile Apps')}", [
                 ("TOPIK ONE — Practice", "https://play.google.com"),
                 ("Memrise — Vocabulary", "https://www.memrise.com"),
                 ("Anki — Flashcards", "https://apps.ankiweb.net"),
                 ("HelloTalk — Language Exchange", "https://www.hellotalk.com"),
             ])
         divider()
+        TL = [
+            "Recommended Study Timeline",
+            "• <b>Months 1–2:</b> Master Hangul, basic grammar & 800 core words (→ TOPIK I).",
+            "• <b>Months 3–4:</b> Intermediate grammar, reading speed & 1,500 words.",
+            "• <b>Months 5–6:</b> Past papers, listening drills & timed mock tests.",
+            "• <b>Final 2 weeks:</b> Full mock exams under timed conditions, review weak areas.",
+            "• <b>Daily habit:</b> 30 minutes of Korean news + 20 new words.",
+        ]
+        ttx = TB(TL)
+        timeline = "<br>".join(ttx.get(s, s) for s in TL[1:])
         st.markdown(
-            """
-            <div class="upk-card"><h3>🗓️ Recommended Study Timeline</h3>
-            <p>• <b>Months 1–2:</b> Master Hangul, basic grammar & 800 core words (→ TOPIK I).<br>
-            • <b>Months 3–4:</b> Intermediate grammar, reading speed & 1,500 words.<br>
-            • <b>Months 5–6:</b> Past papers, listening drills & timed mock tests.<br>
-            • <b>Final 2 weeks:</b> Full mock exams under timed conditions, review weak areas.<br>
-            • <b>Daily habit:</b> 30 minutes of Korean news + 20 new words.</p></div>
-            """,
+            f'<div class="upk-card"><h3>🗓️ {ttx.get(TL[0], TL[0])}</h3><p>{timeline}</p></div>',
             unsafe_allow_html=True,
         )
 
@@ -2743,23 +3073,56 @@ def page_visa():
             row = _visa_lookup(rows, code)
 
             # Fields with sensible defaults so the page is useful even pre-data.
-            db_for = localized(row, "for_who") or row.get("for_who") or for_who
-            fee = row.get("fee", "60,000 KRW (single)")
-            duration = row.get("duration", "1–2 years (renewable)")
-            proc = row.get("processing_time", "2–4 weeks")
-            requirements = _split_list(row.get("requirements")) or [
+            # DB-provided values are shown as-is; English defaults are translated.
+            db_for = localized(row, "for_who") or row.get("for_who")
+            fee = row.get("fee") or "60,000 KRW (single)"
+            duration = row.get("duration") or "1–2 years (renewable)"
+            proc = row.get("processing_time") or "2–4 weeks"
+            req_from_db = _split_list(row.get("requirements"))
+            doc_from_db = _split_list(row.get("documents"))
+            requirements = req_from_db or [
                 "Valid passport (6+ months)",
                 "Certificate of Admission / employment contract",
                 "Proof of financial means",
                 "Completed visa application form",
             ]
-            documents = _split_list(row.get("documents")) or [
+            documents = doc_from_db or [
                 "Passport & passport photo",
                 "Application form",
                 "Certificate of Admission (for students)",
                 "Bank statement / financial proof",
                 "Health & background documents (if required)",
             ]
+
+            # Translate English content (title, defaults). Keep DB text & numbers fixed.
+            to_translate = [title]
+            if not db_for:
+                to_translate.append(for_who)
+            if not row.get("fee"):
+                to_translate.append(fee)
+            if not row.get("duration"):
+                to_translate.append(duration)
+            if not row.get("processing_time"):
+                to_translate.append(proc)
+            if not req_from_db:
+                to_translate += requirements
+            if not doc_from_db:
+                to_translate += documents
+            tx = TB(to_translate)
+            x = lambda s: tx.get(s, s)
+
+            title = x(title)
+            db_for = db_for or x(for_who)
+            if not row.get("fee"):
+                fee = x(fee)
+            if not row.get("duration"):
+                duration = x(duration)
+            if not row.get("processing_time"):
+                proc = x(proc)
+            if not req_from_db:
+                requirements = [x(r) for r in requirements]
+            if not doc_from_db:
+                documents = [x(d) for d in documents]
 
             req_html = "".join(
                 f'<div class="check-item"><span class="ck">✓</span>{r}</div>' for r in requirements)
@@ -2804,6 +3167,17 @@ def page_visa():
 # ════════════════════════════════════════════════════════════════════════════
 # 16. LIFE PAGE
 # ════════════════════════════════════════════════════════════════════════════
+def _life_card(x, icon, title, lines, tag=None, tag_class="tag-navy", mt=False):
+    """Render an info card whose text is translated via the map `x`."""
+    body = "<br>".join(x(l) for l in lines)
+    tag_html = (f'<span class="tag {tag_class}">{tag}</span>' if tag else "")
+    style = 'style="margin-top:14px;"' if mt else ""
+    return (
+        f'<div class="upk-card" {style}><h3>{icon} {x(title)}</h3>{tag_html}'
+        f'<p style="margin-top:10px;">{body}</p></div>'
+    )
+
+
 def page_life():
     section_header(f"🏠 {t('nav_life')}", "Everything you need for daily life in Korea")
     tabs = st.tabs([
@@ -2814,112 +3188,95 @@ def page_life():
     # ───────────── HOUSING ─────────────
     with tabs[0]:
         section_header(f"🏠 {t('life_housing')}", "Find the right place to live")
+        L = [
+            "University Dormitory", "<b>Pros:</b> Cheap, on campus, easy to make friends, furnished.",
+            "<b>Cons:</b> Curfews, roommates, limited privacy, competitive spots.",
+            "One-room (원룸)", "<b>Pros:</b> Privacy, own kitchen & bathroom, flexible.",
+            "<b>Cons:</b> Deposit (보증금) required, utility bills, contracts in Korean.",
+            "Goshiwon (고시원)", "<b>Pros:</b> Cheapest, no deposit, short-term friendly.",
+            "<b>Cons:</b> Very small rooms, shared facilities, thin walls.",
+            "Housing Tips",
+            "• Use apps: <b>Naver Real Estate (네이버 부동산)</b>, <b>Zigbang (직방)</b>, <b>Dabang (다방)</b>.",
+            "• <b>전세 (Jeonse):</b> Large lump-sum deposit, no monthly rent — returned when you leave.",
+            "• <b>월세 (Wolse):</b> Smaller deposit + monthly rent — most common for students.",
+            "• Always verify the landlord and contract; bring a Korean-speaking friend if possible.",
+            "• Check distance to subway, supermarket and your campus before signing.",
+        ]
+        tx = TB(L)
+        x = lambda s: tx.get(s, s)
         c1, c2, c3 = st.columns(3)
-        with c1:
-            st.markdown(
-                """
-                <div class="upk-card"><h3>🏫 University Dormitory</h3>
-                <span class="tag tag-green">~300,000–600,000 KRW/mo</span>
-                <p style="margin-top:10px;"><b>Pros:</b> Cheap, on campus, easy to make friends, furnished.<br>
-                <b>Cons:</b> Curfews, roommates, limited privacy, competitive spots.</p></div>
-                """, unsafe_allow_html=True)
-        with c2:
-            st.markdown(
-                """
-                <div class="upk-card"><h3>🚪 One-room (원룸)</h3>
-                <span class="tag tag-navy">~400,000–800,000 KRW/mo</span>
-                <p style="margin-top:10px;"><b>Pros:</b> Privacy, own kitchen & bathroom, flexible.<br>
-                <b>Cons:</b> Deposit (보증금) required, utility bills, contracts in Korean.</p></div>
-                """, unsafe_allow_html=True)
-        with c3:
-            st.markdown(
-                """
-                <div class="upk-card"><h3>🛏️ Goshiwon (고시원)</h3>
-                <span class="tag tag-orange">~300,000–500,000 KRW/mo</span>
-                <p style="margin-top:10px;"><b>Pros:</b> Cheapest, no deposit, short-term friendly.<br>
-                <b>Cons:</b> Very small rooms, shared facilities, thin walls.</p></div>
-                """, unsafe_allow_html=True)
+        c1.markdown(_life_card(x, "🏫", "University Dormitory",
+                    [L[1], L[2]], "~300,000–600,000 KRW/mo", "tag-green"), unsafe_allow_html=True)
+        c2.markdown(_life_card(x, "🚪", "One-room (원룸)",
+                    [L[4], L[5]], "~400,000–800,000 KRW/mo", "tag-navy"), unsafe_allow_html=True)
+        c3.markdown(_life_card(x, "🛏️", "Goshiwon (고시원)",
+                    [L[7], L[8]], "~300,000–500,000 KRW/mo", "tag-orange"), unsafe_allow_html=True)
         divider()
-        st.markdown(
-            """
-            <div class="upk-card"><h3>💡 Housing Tips</h3>
-            <p>• Use apps: <b>Naver Real Estate (네이버 부동산)</b>, <b>Zigbang (직방)</b>, <b>Dabang (다방)</b>.<br>
-            • <b>전세 (Jeonse):</b> Large lump-sum deposit, no monthly rent — returned when you leave.<br>
-            • <b>월세 (Wolse):</b> Smaller deposit + monthly rent — most common for students.<br>
-            • Always verify the landlord and contract; bring a Korean-speaking friend if possible.<br>
-            • Check distance to subway, supermarket and your campus before signing.</p></div>
-            """,
-            unsafe_allow_html=True,
-        )
+        st.markdown(_life_card(x, "💡", "Housing Tips", L[10:15]), unsafe_allow_html=True)
 
     # ───────────── TRANSPORT ─────────────
     with tabs[1]:
         section_header(f"🚇 {t('life_transport')}", "Get around Korea like a local")
+        L = [
+            "T-money Card",
+            "• Buy at any convenience store (GS25, CU, 7-Eleven) for ~2,500 KRW.",
+            "• Charge (충전) with cash at stores or station machines.",
+            "• Tap on entry and exit for subway, bus and even taxis.",
+            "• Works nationwide — one card for the whole country.",
+            "Bus Guide",
+            "• Blue = main routes, Green = local, Red = express, Yellow = circular.",
+            "• Tap T-money on entry AND exit to get transfer discounts.",
+            "• Use <b>Naver Map</b> or <b>Kakao Bus</b> for live arrival times.",
+            "Subway Guide",
+            "• Use <b>Kakao Metro</b> or <b>Naver Maps</b> for the fastest routes.",
+            "• Lines are color-coded and signs are in English too.",
+            "• Avoid rush hours (08:00–09:00, 18:00–19:00) when possible.",
+            "Taxi",
+            "• Use the <b>Kakao T</b> app to call and pay easily.",
+            "• Pay with T-money, card or cash.",
+            "• Base fare ~4,800 KRW in Seoul; late-night surcharge applies.",
+            "Typical subway/bus fare:",
+        ]
+        tx = TB(L)
+        x = lambda s: tx.get(s, s)
         c1, c2 = st.columns(2)
-        with c1:
-            st.markdown(
-                """
-                <div class="upk-card"><h3>💳 T-money Card</h3>
-                <p>• Buy at any convenience store (GS25, CU, 7-Eleven) for ~2,500 KRW.<br>
-                • Charge (충전) with cash at stores or station machines.<br>
-                • Tap on entry and exit for subway, bus and even taxis.<br>
-                • Works nationwide — one card for the whole country.</p></div>
-                """, unsafe_allow_html=True)
-            st.markdown(
-                """
-                <div class="upk-card" style="margin-top:14px;"><h3>🚌 Bus Guide</h3>
-                <p>• Blue = main routes, Green = local, Red = express, Yellow = circular.<br>
-                • Tap T-money on entry AND exit to get transfer discounts.<br>
-                • Use <b>Naver Map</b> or <b>Kakao Bus</b> for live arrival times.</p></div>
-                """, unsafe_allow_html=True)
-        with c2:
-            st.markdown(
-                """
-                <div class="upk-card"><h3>🚇 Subway Guide</h3>
-                <p>• Use <b>Kakao Metro</b> or <b>Naver Maps</b> for the fastest routes.<br>
-                • Lines are color-coded and signs are in English too.<br>
-                • Avoid rush hours (08:00–09:00, 18:00–19:00) when possible.</p></div>
-                """, unsafe_allow_html=True)
-            st.markdown(
-                """
-                <div class="upk-card" style="margin-top:14px;"><h3>🚕 Taxi</h3>
-                <p>• Use the <b>Kakao T</b> app to call and pay easily.<br>
-                • Pay with T-money, card or cash.<br>
-                • Base fare ~4,800 KRW in Seoul; late-night surcharge applies.</p></div>
-                """, unsafe_allow_html=True)
-        st.markdown('<div class="glass-note" style="margin-top:14px;">💰 Typical subway/bus fare: '
-                    '<b>~1,400 KRW</b> per ride with a T-money card.</div>', unsafe_allow_html=True)
+        c1.markdown(_life_card(x, "💳", "T-money Card", L[1:5]), unsafe_allow_html=True)
+        c1.markdown(_life_card(x, "🚌", "Bus Guide", L[6:9], mt=True), unsafe_allow_html=True)
+        c2.markdown(_life_card(x, "🚇", "Subway Guide", L[10:13]), unsafe_allow_html=True)
+        c2.markdown(_life_card(x, "🚕", "Taxi", L[14:17], mt=True), unsafe_allow_html=True)
+        st.markdown(f'<div class="glass-note" style="margin-top:14px;">💰 {x(L[17])} '
+                    '<b>~1,400 KRW</b>.</div>', unsafe_allow_html=True)
 
     # ───────────── HEALTH ─────────────
     with tabs[2]:
         section_header(f"🏥 {t('life_health')}", "Stay healthy and insured in Korea")
+        L = [
+            "National Health Insurance (NHIS)",
+            "• <b>Mandatory</b> for international students after 6 months of stay.",
+            "• Monthly cost: <b>~130,000 KRW</b> for international students.",
+            "• Covers a large portion of hospital and clinic costs.",
+            "• Download the <b>건강보험 (NHIS)</b> app to manage your account.",
+            "How to See a Doctor",
+            "• Find hospitals/clinics (병원/의원) with <b>Naver Maps</b>.",
+            "• Bring your <b>ARC card</b> for insurance billing.",
+            "• Many big hospitals have international clinics with English support.",
+            "• Pharmacies (약국) are everywhere for prescriptions.",
+            "Emergency Numbers", "Number", "Service",
+            "Ambulance & Fire", "Police", "Medical Consultation (24/7)",
+        ]
+        tx = TB(L)
+        x = lambda s: tx.get(s, s)
         c1, c2 = st.columns(2)
-        with c1:
-            st.markdown(
-                """
-                <div class="upk-card"><h3>🩺 National Health Insurance (NHIS)</h3>
-                <p>• <b>Mandatory</b> for international students after 6 months of stay.<br>
-                • Monthly cost: <b>~130,000 KRW</b> for international students.<br>
-                • Covers a large portion of hospital and clinic costs.<br>
-                • Download the <b>건강보험 (NHIS)</b> app to manage your account.</p></div>
-                """, unsafe_allow_html=True)
-        with c2:
-            st.markdown(
-                """
-                <div class="upk-card"><h3>🏨 How to See a Doctor</h3>
-                <p>• Find hospitals/clinics (병원/의원) with <b>Naver Maps</b>.<br>
-                • Bring your <b>ARC card</b> for insurance billing.<br>
-                • Many big hospitals have international clinics with English support.<br>
-                • Pharmacies (약국) are everywhere for prescriptions.</p></div>
-                """, unsafe_allow_html=True)
+        c1.markdown(_life_card(x, "🩺", "National Health Insurance (NHIS)", L[1:5]), unsafe_allow_html=True)
+        c2.markdown(_life_card(x, "🏨", "How to See a Doctor", L[6:10]), unsafe_allow_html=True)
         st.markdown(
-            """
-            <div class="upk-card" style="margin-top:14px;"><h3>🚨 Emergency Numbers</h3>
+            f"""
+            <div class="upk-card" style="margin-top:14px;"><h3>🚨 {x("Emergency Numbers")}</h3>
             <table class="upk-table">
-                <tr><th>Number</th><th>Service</th></tr>
-                <tr><td>119</td><td>Ambulance & Fire</td></tr>
-                <tr><td>112</td><td>Police</td></tr>
-                <tr><td>1339</td><td>Medical Consultation (24/7)</td></tr>
+                <tr><th>{x("Number")}</th><th>{x("Service")}</th></tr>
+                <tr><td>119</td><td>{x("Ambulance & Fire")}</td></tr>
+                <tr><td>112</td><td>{x("Police")}</td></tr>
+                <tr><td>1339</td><td>{x("Medical Consultation (24/7)")}</td></tr>
             </table></div>
             """,
             unsafe_allow_html=True,
@@ -2928,78 +3285,73 @@ def page_life():
     # ───────────── BANKING ─────────────
     with tabs[3]:
         section_header(f"🏦 {t('life_banking')}", "Open an account and manage money")
+        L = [
+            "Required Documents", "ARC (Alien Registration Card)", "Passport",
+            "University enrollment certificate", "Korean phone number",
+            "Foreigner-friendly Banks",
+            "• <b>KEB Hana Bank</b> — strong foreign-customer support.",
+            "• <b>IBK</b> (Industrial Bank of Korea).",
+            "• <b>Woori Bank</b> and <b>Shinhan Bank</b>.",
+            "Steps to Open an Account",
+            "1. Visit a branch with your documents.",
+            "2. Fill out the application (staff often help in English).",
+            "3. Receive your debit card & bankbook (통장).",
+            "4. Set up mobile banking with your card & ID.",
+            "5. Register for online transfers (may need extra verification).",
+            "Sending Money Abroad",
+            "• <b>Wise</b> for low-fee international transfers.",
+            "• <b>WeChat Pay / Alipay</b> popular for Chinese students.",
+            "• Banks offer remittance but with higher fees.",
+        ]
+        tx = TB(L)
+        x = lambda s: tx.get(s, s)
         c1, c2 = st.columns(2)
-        with c1:
-            st.markdown(
-                """
-                <div class="upk-card"><h3>📋 Required Documents</h3>
-                <div class="check-item"><span class="ck">✓</span>ARC (Alien Registration Card)</div>
-                <div class="check-item"><span class="ck">✓</span>Passport</div>
-                <div class="check-item"><span class="ck">✓</span>University enrollment certificate</div>
-                <div class="check-item"><span class="ck">✓</span>Korean phone number</div></div>
-                """, unsafe_allow_html=True)
-            st.markdown(
-                """
-                <div class="upk-card" style="margin-top:14px;"><h3>🏦 Foreigner-friendly Banks</h3>
-                <p>• <b>KEB Hana Bank</b> — strong foreign-customer support.<br>
-                • <b>IBK</b> (Industrial Bank of Korea).<br>
-                • <b>Woori Bank</b> and <b>Shinhan Bank</b>.</p></div>
-                """, unsafe_allow_html=True)
-        with c2:
-            st.markdown(
-                """
-                <div class="upk-card"><h3>🪪 Steps to Open an Account</h3>
-                <p>1. Visit a branch with your documents.<br>
-                2. Fill out the application (staff often help in English).<br>
-                3. Receive your debit card & bankbook (통장).<br>
-                4. Set up mobile banking with your card & ID.<br>
-                5. Register for online transfers (may need extra verification).</p></div>
-                """, unsafe_allow_html=True)
-            st.markdown(
-                """
-                <div class="upk-card" style="margin-top:14px;"><h3>🌍 Sending Money Abroad</h3>
-                <p>• <b>Wise</b> for low-fee international transfers.<br>
-                • <b>WeChat Pay / Alipay</b> popular for Chinese students.<br>
-                • Banks offer remittance but with higher fees.</p></div>
-                """, unsafe_allow_html=True)
+        docs = "".join(f'<div class="check-item"><span class="ck">✓</span>{x(d)}</div>' for d in L[1:5])
+        c1.markdown(f'<div class="upk-card"><h3>📋 {x("Required Documents")}</h3>{docs}</div>',
+                    unsafe_allow_html=True)
+        c1.markdown(_life_card(x, "🏦", "Foreigner-friendly Banks", L[6:9], mt=True), unsafe_allow_html=True)
+        c2.markdown(_life_card(x, "🪪", "Steps to Open an Account", L[10:15]), unsafe_allow_html=True)
+        c2.markdown(_life_card(x, "🌍", "Sending Money Abroad", L[16:19], mt=True), unsafe_allow_html=True)
 
     # ───────────── SAFETY ─────────────
     with tabs[4]:
         section_header(f"🛟 {t('life_safety')}", "Stay safe and know who to call")
+        L = [
+            "Emergency & Support Numbers", "Number", "Service",
+            "Ambulance & Fire", "Police", "Seoul City Helpline (multilingual)",
+            "Tourism Hotline (24/7, multilingual)", "Immigration Contact Center",
+            "Mental Health / Suicide Prevention",
+            "Daily Safety Tips",
+            "• Korea is very safe, but stay alert late at night.",
+            "• Keep your ARC and passport copies in a safe place.",
+            "• Beware of phone/voice phishing (보이스피싱) scams.",
+            "• Save your address in Korean for taxis and emergencies.",
+            "Useful Apps & Centers",
+            "• <b>Emergency Ready App (안전디딤돌)</b> — disaster alerts in English.",
+            "• <b>112/119 apps</b> for silent emergency reporting.",
+            "• Visit your city's <b>Global / Foreigner Support Center</b> for free help.",
+            "• Seoul Global Center offers free legal & life counseling.",
+        ]
+        tx = TB(L)
+        x = lambda s: tx.get(s, s)
         st.markdown(
-            """
-            <div class="upk-card"><h3>📞 Emergency & Support Numbers</h3>
+            f"""
+            <div class="upk-card"><h3>📞 {x("Emergency & Support Numbers")}</h3>
             <table class="upk-table">
-                <tr><th>Number</th><th>Service</th></tr>
-                <tr><td>119</td><td>Ambulance & Fire</td></tr>
-                <tr><td>112</td><td>Police</td></tr>
-                <tr><td>120</td><td>Seoul City Helpline (multilingual)</td></tr>
-                <tr><td>1330</td><td>Tourism Hotline (24/7, multilingual)</td></tr>
-                <tr><td>1345</td><td>Immigration Contact Center</td></tr>
-                <tr><td>1393</td><td>Mental Health / Suicide Prevention</td></tr>
+                <tr><th>{x("Number")}</th><th>{x("Service")}</th></tr>
+                <tr><td>119</td><td>{x("Ambulance & Fire")}</td></tr>
+                <tr><td>112</td><td>{x("Police")}</td></tr>
+                <tr><td>120</td><td>{x("Seoul City Helpline (multilingual)")}</td></tr>
+                <tr><td>1330</td><td>{x("Tourism Hotline (24/7, multilingual)")}</td></tr>
+                <tr><td>1345</td><td>{x("Immigration Contact Center")}</td></tr>
+                <tr><td>1393</td><td>{x("Mental Health / Suicide Prevention")}</td></tr>
             </table></div>
             """,
             unsafe_allow_html=True,
         )
         c1, c2 = st.columns(2)
-        with c1:
-            st.markdown(
-                """
-                <div class="upk-card" style="margin-top:14px;"><h3>🛡️ Daily Safety Tips</h3>
-                <p>• Korea is very safe, but stay alert late at night.<br>
-                • Keep your ARC and passport copies in a safe place.<br>
-                • Beware of phone/voice phishing (보이스피싱) scams.<br>
-                • Save your address in Korean for taxis and emergencies.</p></div>
-                """, unsafe_allow_html=True)
-        with c2:
-            st.markdown(
-                """
-                <div class="upk-card" style="margin-top:14px;"><h3>📱 Useful Apps & Centers</h3>
-                <p>• <b>Emergency Ready App (안전디딤돌)</b> — disaster alerts in English.<br>
-                • <b>112/119 apps</b> for silent emergency reporting.<br>
-                • Visit your city's <b>Global / Foreigner Support Center</b> for free help.<br>
-                • Seoul Global Center offers free legal & life counseling.</p></div>
-                """, unsafe_allow_html=True)
+        c1.markdown(_life_card(x, "🛡️", "Daily Safety Tips", L[10:14], mt=True), unsafe_allow_html=True)
+        c2.markdown(_life_card(x, "📱", "Useful Apps & Centers", L[15:19], mt=True), unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════════════════════════════════
