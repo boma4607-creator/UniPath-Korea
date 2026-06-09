@@ -4370,6 +4370,24 @@ floating_chat()
 admin_panel()
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# requirements.txt
+# ────────────────────────────────────────────────────────────────────────────
+# streamlit>=1.40.0
+# llama-index-core>=0.10.68
+# llama-index-llms-google-genai>=0.3.0
+# llama-index-embeddings-google-genai>=0.3.0
+# llama-index-vector-stores-supabase>=0.3.0
+# supabase>=2.10.0
+# google-generativeai>=0.7.0
+# pandas>=2.2.1
+# plotly>=5.19.0
+# pypdf>=4.1.0
+# python-dotenv>=1.0.1
+# requests>=2.31.0
+# ════════════════════════════════════════════════════════════════════════════
+
+
 
 
 
