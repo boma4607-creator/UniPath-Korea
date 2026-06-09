@@ -693,6 +693,568 @@ section[data-testid="stSidebar"] {
 """
 st.markdown(ENHANCED_CSS, unsafe_allow_html=True)
 
+# ─── Final product polish layer ──────────────────────────────────────────────
+FINAL_CSS = """
+<style>
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #1E50C8, #06C684);
+    border-radius: 10px; border: 3px solid #F3F6FD;
+}
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #0B2A6B, #06C684); }
+::selection { background: rgba(6,198,132,0.28); }
+
+/* Tighten Streamlit's default vertical gaps for a denser, app-like feel */
+div[data-testid="stVerticalBlock"] { gap: 0.7rem; }
+
+/* Section title accent bar */
+.section-title { position: relative; padding-left: 16px; }
+.section-title::before {
+    content:""; position:absolute; left:0; top:8px; bottom:8px; width:5px;
+    border-radius:6px; background: linear-gradient(180deg, #1E50C8, #06C684);
+}
+.section-sub { padding-left: 16px; }
+
+/* Hero — decorative dotted grid + crisper type */
+.hero {
+    background-image:
+        radial-gradient(rgba(255,255,255,0.10) 1px, transparent 1px),
+        radial-gradient(700px 300px at 90% -20%, rgba(255,255,255,0.25), transparent 60%),
+        linear-gradient(135deg, #0B2A6B 0%, #1E50C8 52%, #06C684 120%);
+    background-size: 22px 22px, auto, auto;
+}
+.hero h1 { font-size: 58px; line-height: 1.05; text-shadow: 0 6px 24px rgba(0,0,0,0.18); }
+.hero p { font-size: 19.5px; }
+.hero-badge { letter-spacing: .02em; }
+
+/* Navbar — active pill gets a soft glow ring */
+.upk-nav { padding: 7px 12px; }
+.upk-nav-active .stButton > button {
+    box-shadow: 0 8px 20px rgba(13,40,100,0.30), 0 0 0 3px rgba(6,198,132,0.18) !important;
+}
+.upk-nav .stSelectbox div[data-baseweb="select"] > div {
+    border-radius: 12px !important; border: 1px solid #E1E8F4 !important;
+    background: rgba(255,255,255,0.9) !important;
+}
+
+/* KPI cards — gradient hairline ring */
+.kpi-card { position: relative; }
+.kpi-card::after {
+    content:""; position:absolute; inset:0; border-radius:22px; padding:1px;
+    background: linear-gradient(135deg, rgba(30,80,200,0.35), rgba(6,198,132,0.35));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude; pointer-events:none;
+}
+
+/* Buttons — sheen sweep on hover */
+.stButton > button { position: relative; overflow: hidden; }
+.stButton > button::after {
+    content:""; position:absolute; top:0; left:-120%; width:60%; height:100%;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.35), transparent);
+    transform: skewX(-20deg); transition: left .6s ease;
+}
+.stButton > button:hover::after { left: 140%; }
+
+/* Primary CTA buttons inside content cards a touch larger */
+.stButton > button { letter-spacing: .01em; }
+
+/* Inputs — softer, larger touch target */
+.stTextInput input, .stTextArea textarea {
+    padding: 12px 15px !important; font-size: 15px !important;
+}
+
+/* Expander header weight */
+summary p { font-weight: 700 !important; font-size: 15.5px !important; }
+
+/* Streamlit alert boxes restyled to the palette */
+div[data-testid="stAlert"] {
+    border-radius: 14px !important;
+    border: 1px solid #DCE6F7 !important;
+    box-shadow: 0 8px 22px rgba(13,40,100,0.05) !important;
+}
+
+/* Metric polish */
+.metric-box .mv { background: linear-gradient(135deg,#0B2A6B,#1E50C8);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+
+/* Chat input in sidebar */
+section[data-testid="stSidebar"] .stChatInput textarea {
+    background: rgba(255,255,255,0.96) !important; color: #0F172A !important;
+    border-radius: 14px !important;
+}
+
+/* Footer */
+.upk-footer {
+    margin-top: 48px; padding: 34px 28px; border-radius: 24px;
+    background: linear-gradient(135deg, #0B2A6B 0%, #102f78 60%, #0c3f6e 100%);
+    color: #fff; box-shadow: 0 20px 50px rgba(11,42,107,0.25);
+}
+.upk-footer a { color: #9ec5ff; }
+.upk-footer a:hover { color: #06C684; }
+.upk-foot-logo { font-size: 22px; font-weight: 900; letter-spacing: -0.02em; }
+.upk-foot-cols { display:grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 26px; margin-top: 18px; }
+.upk-foot-cols h5 { color:#cfe0ff; font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:0 0 10px 0; }
+.upk-foot-cols a { display:block; padding:4px 0; font-size:14px; }
+.upk-foot-bottom { margin-top:22px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.14);
+    font-size:13px; color:rgba(255,255,255,0.7); display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+
+@media (max-width: 900px) {
+    .upk-foot-cols { grid-template-columns: 1fr 1fr; }
+    .hero h1 { font-size: 34px; }
+}
+</style>
+"""
+st.markdown(FINAL_CSS, unsafe_allow_html=True)
+
+# ─── PROFESSIONAL REDESIGN (final override layer) ────────────────────────────
+# A clean, corporate, editorial aesthetic: deep slate-navy + a single refined
+# indigo accent, generous whitespace, a solid white top bar with an underline
+# active indicator, a confident dark hero, and flat precise cards. This layer
+# is loaded last, so it wins the cascade.
+PRO_CSS = """
+<style>
+:root {
+    --navy: #16233F;      /* primary deep slate-navy   */
+    --navy-2: #2E4B8A;    /* secondary                  */
+    --indigo: #3D5AFE;    /* refined accent (sparingly) */
+    --emerald: #12A580;   /* success / positive accent  */
+    --orange: #E0703A;    /* warm accent                */
+    --light: #F5F7FB;
+    --ink: #131A2B;
+    --muted: #5A6478;
+    --line: #E8EBF1;
+    --paper: #FFFFFF;
+}
+
+/* ===== Page canvas — calm, professional ===== */
+.stApp {
+    background: #F7F8FB !important;
+}
+.block-container { max-width: 1440px !important; padding-top: 0.4rem !important; }
+html, body, [class*="css"], .stApp { color: var(--ink); }
+h1,h2,h3,h4 { color: var(--ink); letter-spacing: -0.018em; }
+
+/* ===== Top navigation — solid white bar, underline active ===== */
+.upk-nav {
+    position: sticky; top: 0; z-index: 999;
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: saturate(180%) blur(10px);
+    border: none; border-bottom: 1px solid var(--line);
+    border-radius: 0; box-shadow: 0 2px 14px rgba(16,35,63,0.05);
+    padding: 12px 10px 6px 10px; margin: 0 0 26px 0;
+}
+.nav-logo { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; }
+.nav-logo .lp { color: var(--navy); }
+.nav-logo .ls { color: var(--indigo); -webkit-text-fill-color: var(--indigo); background: none; }
+
+.upk-nav .stButton > button {
+    background: transparent !important; color: var(--muted) !important;
+    border: none !important; border-radius: 0 !important;
+    box-shadow: none !important; font-weight: 600 !important;
+    font-size: 13px !important; letter-spacing: .02em !important;
+    padding: 8px 4px 10px 4px !important;
+    border-bottom: 2px solid transparent !important;
+    transition: color .15s ease, border-color .15s ease;
+}
+.upk-nav .stButton > button::after { display: none !important; }
+.upk-nav .stButton > button:hover {
+    background: transparent !important; color: var(--navy) !important;
+    transform: none !important; border-bottom: 2px solid var(--line) !important;
+}
+.upk-nav-active .stButton > button {
+    color: var(--navy) !important; font-weight: 800 !important;
+    border-bottom: 2px solid var(--indigo) !important;
+    box-shadow: none !important;
+}
+.upk-nav .stSelectbox div[data-baseweb="select"] > div {
+    background: #fff !important; border: 1px solid var(--line) !important;
+    border-radius: 9px !important; min-height: 34px;
+}
+
+/* ===== Hero — confident dark, editorial ===== */
+.hero {
+    background:
+        radial-gradient(620px 280px at 82% 12%, rgba(61,90,254,0.22), transparent 62%),
+        radial-gradient(480px 300px at 8% 95%, rgba(18,165,128,0.16), transparent 60%),
+        linear-gradient(160deg, #0E1A33 0%, #16233F 55%, #1B2C50 100%);
+    background-size: auto;
+    border-radius: 22px;
+    padding: 76px 56px 104px 56px;
+    box-shadow: 0 24px 60px rgba(14,26,51,0.30);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+.hero::before, .hero::after { display: none; }
+.hero-badge {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: #C9D6FF; font-weight: 600; letter-spacing: .03em;
+    backdrop-filter: blur(4px); box-shadow: none;
+}
+.hero h1 {
+    color: #FFFFFF !important; font-size: 54px; font-weight: 800;
+    line-height: 1.08; letter-spacing: -0.03em; text-shadow: none;
+    max-width: 760px; margin: 18px 0 18px 0;
+}
+.hero p { color: rgba(226,232,245,0.82); font-size: 18.5px; font-weight: 400; max-width: 640px; }
+
+/* ===== KPI cards — flat, precise, divided ===== */
+.kpi-wrap { gap: 0; margin-top: -56px; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 16px 40px rgba(16,35,63,0.10); }
+.kpi-card {
+    background: #fff !important; border: 1px solid var(--line) !important;
+    border-right: none !important; border-bottom: none !important;
+    border-radius: 0 !important; box-shadow: none !important; padding: 26px 22px;
+}
+.kpi-wrap .kpi-card:first-child { border-top-left-radius: 16px; border-bottom-left-radius: 16px; }
+.kpi-wrap .kpi-card:last-child { border-right: 1px solid var(--line) !important;
+    border-top-right-radius: 16px; border-bottom-right-radius: 16px; }
+.kpi-card::after { display: none !important; }
+.kpi-card:hover { transform: none; box-shadow: inset 0 -3px 0 var(--indigo); }
+.kpi-value { color: var(--navy); -webkit-text-fill-color: var(--navy); background: none;
+    font-size: 34px; font-weight: 800; }
+.kpi-label { color: var(--muted); font-weight: 600; letter-spacing: .06em; font-size: 11.5px; }
+.kpi-icon { filter: none; opacity: .9; }
+
+/* ===== Section titles — editorial, no gradient text ===== */
+.section-title {
+    color: var(--ink) !important; -webkit-text-fill-color: var(--ink); background: none;
+    font-size: 26px; font-weight: 800; padding-left: 0; letter-spacing: -0.02em;
+}
+.section-title::before { display: none; }
+.section-sub { padding-left: 0; color: var(--muted); font-size: 15px; }
+
+/* ===== Cards — flat, 1px border, hover lift only ===== */
+.upk-card, .link-card, .reason-card, .news-card, .portal-card, .metric-box,
+.flow-step, .job-card, .visa-card, .stat-box {
+    background: #fff !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 1px 2px rgba(16,35,63,0.04) !important;
+}
+.upk-card:hover, .reason-card:hover, .news-card:hover, .flow-step:hover,
+.job-card:hover, .portal-card:hover, .link-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 34px rgba(16,35,63,0.10) !important;
+    border-color: #D4DAE6 !important;
+}
+.upk-card h3 { font-size: 17px; font-weight: 700; }
+.upk-card p, .reason-card p, .news-card p { color: var(--muted); }
+
+/* Flow numbers — solid, no glow */
+.flow-num { background: var(--navy); box-shadow: none; font-weight: 700; }
+.flow-arrow { color: #C4CCDB; }
+
+/* Stat numbers — solid navy */
+.stat-big { color: var(--navy); -webkit-text-fill-color: var(--navy); background: none;
+    font-weight: 800; }
+
+/* ===== Buttons — solid, restrained ===== */
+.stButton > button {
+    background: var(--navy) !important;
+    color: #fff !important; border: 1px solid var(--navy) !important;
+    border-radius: 10px !important; font-weight: 600 !important;
+    box-shadow: none !important; padding: 9px 18px !important;
+    transition: background .15s ease, transform .12s ease;
+}
+.stButton > button::after { display: none !important; }
+.stButton > button:hover {
+    background: #1E3360 !important; border-color: #1E3360 !important;
+    color: #fff !important; transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(16,35,63,0.18) !important;
+}
+.stDownloadButton > button {
+    background: #fff !important; color: var(--navy) !important;
+    border: 1px solid var(--navy) !important; border-radius: 10px !important; font-weight: 600 !important;
+}
+
+/* ===== Tabs — clean underline indicator ===== */
+.stTabs [data-baseweb="tab-list"] {
+    background: transparent; border: none; border-bottom: 1px solid var(--line);
+    border-radius: 0; padding: 0; gap: 4px; box-shadow: none; backdrop-filter: none;
+}
+.stTabs [data-baseweb="tab"] {
+    background: transparent !important; border: none !important; border-radius: 0 !important;
+    color: var(--muted) !important; font-weight: 600 !important; font-size: 14px !important;
+    padding: 11px 16px !important; margin-bottom: -1px;
+    border-bottom: 2px solid transparent !important;
+}
+.stTabs [data-baseweb="tab"]:hover { background: transparent !important; color: var(--navy) !important; }
+.stTabs [aria-selected="true"] {
+    background: transparent !important; color: var(--navy) !important;
+    border-bottom: 2px solid var(--indigo) !important; box-shadow: none !important;
+}
+
+/* ===== Badges / tags — quiet, professional ===== */
+.tag { border-radius: 6px; font-weight: 600; font-size: 11.5px; padding: 4px 10px; }
+.tag-navy { background: #EEF1F8; color: var(--navy); }
+.tag-green { background: #E6F6F1; color: #0B7A5E; }
+.tag-orange { background: #FBEEE6; color: #B85426; }
+.tag-grey { background: #F1F3F7; color: #57607A; }
+.badge-new { background: #E6F6F1; color: #0B7A5E; border: none; }
+.badge-hot { background: #FBEEE6; color: #B85426; border: none; }
+.badge-ai  { background: #ECEFFE; color: var(--indigo); border: none; }
+.match-badge { background: var(--navy); }
+
+/* ===== Inputs ===== */
+.stTextInput input, .stTextArea textarea, .stDateInput input {
+    border: 1px solid #D6DCE8 !important; border-radius: 10px !important;
+    box-shadow: none !important; background: #fff !important;
+}
+.stTextInput input:focus, .stTextArea textarea:focus {
+    border-color: var(--indigo) !important; box-shadow: 0 0 0 3px rgba(61,90,254,0.12) !important;
+}
+.stSelectbox div[data-baseweb="select"] > div,
+.stMultiSelect div[data-baseweb="select"] > div {
+    border: 1px solid #D6DCE8 !important; border-radius: 10px !important;
+}
+.stMultiSelect span[data-baseweb="tag"] { background: var(--navy) !important; border-radius: 6px !important; }
+
+/* Expanders — flat */
+.stExpander, details[data-testid="stExpander"] {
+    border: 1px solid var(--line) !important; border-radius: 12px !important;
+    box-shadow: 0 1px 2px rgba(16,35,63,0.04) !important;
+}
+
+/* Tables */
+.upk-table { border: 1px solid var(--line); border-radius: 12px; box-shadow: none; }
+.upk-table th { background: var(--navy); font-weight: 600; font-size: 12px; letter-spacing: .04em; }
+.upk-table tr:hover td { background: #F7F9FC; }
+
+/* Link rows */
+.link-card h4 { color: var(--navy); font-size: 15px; }
+.link-row { border-radius: 8px; color: var(--ink); }
+.link-row:hover { background: #F1F4FA; color: var(--navy); border-color: transparent; }
+
+/* Metric numbers */
+.metric-box .mv { color: var(--navy); -webkit-text-fill-color: var(--navy); background: none; }
+
+/* CTA chip — quieter */
+.chat-cta {
+    background: #fff; color: var(--navy);
+    border: 1px solid var(--line); box-shadow: 0 6px 18px rgba(16,35,63,0.08);
+    animation: none; font-weight: 600;
+}
+
+/* Sidebar — deep, matches navy */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #16233F 0%, #101A30 100%) !important;
+}
+
+/* Visa card — flat */
+.visa-card { background: #fff !important; box-shadow: 0 1px 2px rgba(16,35,63,0.04) !important; }
+.visa-head .vi { background: var(--navy); box-shadow: none; }
+.info-pill { border-radius: 10px; }
+.info-pill .ip-v { color: var(--navy); }
+.check-item .ck { color: var(--emerald); }
+
+/* Footer — refined slate */
+.upk-footer { background: linear-gradient(160deg, #16233F 0%, #101A30 100%); border-radius: 20px; }
+.upk-footer a { color: #9FB2D8; }
+
+/* Divider */
+.soft-divider { background: var(--line); }
+
+/* Stat grid spacing */
+.stat-grid { gap: 14px; }
+.stat-box { background: #fff !important; }
+
+@media (max-width: 920px) {
+    .upk-nav { margin: 0 -1rem 18px -1rem; }
+    .hero h1 { font-size: 34px; }
+    .hero { padding: 52px 28px 90px 28px; }
+}
+</style>
+"""
+st.markdown(PRO_CSS, unsafe_allow_html=True)
+
+# ─── HEADER — polished sticky top bar ────────────────────────────────────────
+HEADER_CSS = """
+<style>
+/* Thin gradient accent strip pinned to the very top of the viewport */
+.stApp::before {
+    content:""; position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 100000;
+    background: linear-gradient(90deg, #16233F 0%, #3D5AFE 50%, #12A580 100%);
+}
+
+/* Kill Streamlit's large default top padding so the header sits at the top */
+header[data-testid="stHeader"] { display: none !important; height: 0 !important; }
+[data-testid="stMainBlockContainer"],
+[data-testid="stAppViewContainer"] .block-container,
+.stMainBlockContainer, .block-container {
+    padding-top: 0.5rem !important;
+}
+[data-testid="stToolbar"] { display: none !important; }
+
+/* The keyed container becomes the real header bar (wraps all widgets) */
+.st-key-topnav {
+    position: sticky; top: 6px; z-index: 9999;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: saturate(180%) blur(14px);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    border: 1px solid var(--line);
+    box-shadow: 0 6px 24px rgba(16,35,63,0.08);
+    padding: 10px 22px;
+    margin: 0 0 24px 0;
+    border-radius: 16px;
+}
+.st-key-topnav [data-testid="stHorizontalBlock"] { align-items: center; }
+/* Vertically center every column's content within the bar */
+.st-key-topnav [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] > div {
+    display: flex; flex-direction: column; justify-content: center;
+}
+.st-key-topnav [data-testid="stColumn"] [data-testid="stMarkdownContainer"] { width: 100%; }
+
+/* Logo lockup */
+.upk-logo { display: flex; align-items: center; gap: 11px; margin: 0; line-height: 1; }
+.st-key-topnav [data-testid="stColumn"]:first-child [data-testid="stMarkdownContainer"] { margin: 0; }
+.st-key-topnav [data-testid="stColumn"]:first-child p { margin: 0 !important; }
+.upk-logo .badge {
+    width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+    background: linear-gradient(135deg, #16233F 0%, #3D5AFE 100%);
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: 21px; box-shadow: 0 8px 18px rgba(61,90,254,0.30);
+}
+.upk-logo .wm { line-height: 1.05; font-size: 21px; font-weight: 800;
+    letter-spacing: -0.035em; color: var(--navy); }
+.upk-logo .wm span { color: var(--indigo); }
+.upk-logo .wm small { display: block; font-size: 9.5px; font-weight: 700;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-top: 3px; }
+
+/* Nav links — quiet text, underline indicator */
+.st-key-topnav .stButton > button {
+    background: transparent !important; color: var(--muted) !important;
+    border: none !important; border-radius: 8px !important; box-shadow: none !important;
+    font-weight: 600 !important; font-size: 12.5px !important; letter-spacing: 0 !important;
+    padding: 9px 2px !important; position: relative; transition: color .15s ease;
+    white-space: nowrap !important;
+}
+.st-key-topnav .stButton > button p { white-space: nowrap !important; }
+.st-key-topnav .stButton > button::after { display: none !important; }
+.st-key-topnav .stButton > button:hover {
+    background: #F3F5FA !important; color: var(--navy) !important; transform: none !important;
+}
+/* Active nav item — soft tinted pill */
+.st-key-nav_active .stButton > button {
+    color: var(--navy) !important; font-weight: 800 !important;
+    background: linear-gradient(135deg, rgba(61,90,254,0.12), rgba(18,165,128,0.12)) !important;
+    border-radius: 9px !important;
+}
+.st-key-nav_active .stButton > button::before { display: none !important; }
+
+/* Language selector — compact pill */
+.st-key-topnav .stSelectbox div[data-baseweb="select"] > div {
+    background: #F5F7FB !important; border: 1px solid var(--line) !important;
+    border-radius: 10px !important; min-height: 38px;
+}
+
+/* Auth CTA — filled, distinct from nav links */
+.st-key-nav_cta .stButton > button {
+    background: var(--navy) !important; color: #fff !important;
+    border: 1px solid var(--navy) !important; border-radius: 10px !important;
+    font-weight: 700 !important; font-size: 13px !important; padding: 9px 14px !important;
+    box-shadow: 0 6px 16px rgba(16,35,63,0.20) !important;
+}
+.st-key-nav_cta .stButton > button:hover {
+    background: #1E3360 !important; border-color: #1E3360 !important;
+    transform: translateY(-1px); color: #fff !important;
+}
+
+@media (max-width: 920px) {
+    .st-key-topnav { padding: 10px 12px; }
+    .upk-logo .wm small { display: none; }
+}
+</style>
+"""
+st.markdown(HEADER_CSS, unsafe_allow_html=True)
+
+# ─── HERO + JOB PORTALS — refined ────────────────────────────────────────────
+HERO_CSS = """
+<style>
+/* Hero — stats integrated inside, no overlapping floating cards */
+.hero {
+    padding: 60px 54px 52px 54px !important;
+    border-radius: 24px !important;
+}
+.hero h1 { font-size: 52px; max-width: 800px; }
+.hero p { margin-bottom: 6px; }
+
+.hero-stats {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    margin-top: 38px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 16px;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    overflow: hidden;
+}
+.hstat { padding: 22px 18px; text-align: center;
+    border-right: 1px solid rgba(255,255,255,0.12);
+    transition: background .2s ease; }
+.hstat:last-child { border-right: none; }
+.hstat:hover { background: rgba(255,255,255,0.06); }
+.hstat .hi { font-size: 17px; opacity: .85; margin-bottom: 4px; }
+.hstat .hv { font-size: 30px; font-weight: 800; color: #fff; letter-spacing: -0.02em; line-height: 1; }
+.hstat .hl { font-size: 11.5px; font-weight: 600; color: rgba(206,219,255,0.82);
+    text-transform: uppercase; letter-spacing: .07em; margin-top: 8px; }
+
+/* Popular job portals — premium logo cards */
+.portal-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+.pcard {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    background: #fff; border: 1px solid var(--line); border-radius: 16px;
+    padding: 22px 14px; text-align: center; transition: all .2s ease; height: 100%;
+}
+.pcard:hover { transform: translateY(-4px); border-color: #C9D2E6;
+    box-shadow: 0 16px 34px rgba(16,35,63,0.12); }
+.pcard .pmark {
+    width: 46px; height: 46px; border-radius: 13px; display: flex;
+    align-items: center; justify-content: center; font-size: 19px; font-weight: 800;
+    color: #fff; box-shadow: 0 6px 14px rgba(16,35,63,0.18);
+}
+.pcard .pname { font-size: 14px; font-weight: 700; color: var(--navy); }
+.pcard .pdesc { font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+.pcard .pgo { font-size: 11px; font-weight: 700; color: var(--indigo);
+    letter-spacing: .03em; margin-top: auto; }
+
+/* Explore the Platform — feature cards */
+.feat-card {
+    position: relative; overflow: hidden; height: 100%;
+    background: #fff; border: 1px solid var(--line);
+    border-radius: 18px; border-top: 3px solid var(--fc, #3D5AFE);
+    padding: 26px 24px 22px 24px; transition: all .22s ease;
+}
+.feat-card::before {
+    content: ""; position: absolute; right: -40px; top: -40px;
+    width: 130px; height: 130px; border-radius: 50%;
+    background: radial-gradient(circle, var(--fcglow, rgba(61,90,254,0.10)), transparent 70%);
+}
+.feat-card:hover { transform: translateY(-5px); border-color: #D4DAE6;
+    box-shadow: 0 18px 40px rgba(16,35,63,0.12); }
+.feat-tile {
+    width: 54px; height: 54px; border-radius: 15px; display: flex;
+    align-items: center; justify-content: center; font-size: 26px; color: #fff;
+    background: var(--fc, #3D5AFE); box-shadow: 0 10px 22px var(--fcsh, rgba(61,90,254,0.30));
+    margin-bottom: 16px;
+}
+.feat-badge {
+    position: absolute; top: 18px; right: 18px; font-size: 11px; font-weight: 800;
+    letter-spacing: .06em; padding: 4px 10px; border-radius: 999px;
+    background: var(--fcbg, #ECEFFE); color: var(--fc, #3D5AFE);
+}
+.feat-card h3 { font-size: 19px; font-weight: 800; margin: 0 0 8px 0; color: var(--ink); }
+.feat-card p { color: var(--muted); font-size: 14px; line-height: 1.55; margin: 0 0 4px 0; }
+
+@media (max-width: 920px) {
+    .hero-stats { grid-template-columns: repeat(2, 1fr); }
+    .hstat:nth-child(2) { border-right: none; }
+    .portal-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+"""
+st.markdown(HERO_CSS, unsafe_allow_html=True)
+
 # ════════════════════════════════════════════════════════════════════════════
 # 4. MULTILINGUAL SYSTEM — 9 LANGUAGES
 # ════════════════════════════════════════════════════════════════════════════
@@ -1772,50 +2334,54 @@ NAV_ITEMS = [
 
 
 def render_nav():
-    st.markdown('<div class="upk-nav">', unsafe_allow_html=True)
-    logo_col, nav_col, lang_col, auth_col = st.columns([1.7, 6.0, 1.5, 1.1])
+    # The whole bar lives inside a keyed container so the sticky white header
+    # actually wraps the interactive widgets (a plain markdown <div> would not).
+    with st.container(key="topnav"):
+        logo_col, nav_col, lang_col, auth_col = st.columns(
+            [2.1, 7.2, 1.6, 1.3], vertical_alignment="center")
 
-    with logo_col:
-        st.markdown(
-            '<div class="nav-logo">🎓 <span class="lp">Uni</span><span class="ls">Path</span></div>',
-            unsafe_allow_html=True,
-        )
+        with logo_col:
+            st.markdown(
+                '<div class="upk-logo">'
+                '<div class="badge">🎓</div>'
+                '<div class="wm">Uni<span>Path</span><small>Korea Guide</small></div>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
 
-    with nav_col:
-        ncols = st.columns(len(NAV_ITEMS))
-        for i, (page, key) in enumerate(NAV_ITEMS):
-            with ncols[i]:
-                active = st.session_state.page == page
-                if active:
-                    st.markdown('<div class="upk-nav-active">', unsafe_allow_html=True)
-                if st.button(t(key), key=f"nav_{page}", use_container_width=True):
-                    goto(page)
-                if active:
-                    st.markdown('</div>', unsafe_allow_html=True)
+        with nav_col:
+            ncols = st.columns(len(NAV_ITEMS))
+            for i, (page, key) in enumerate(NAV_ITEMS):
+                with ncols[i]:
+                    active = st.session_state.page == page
+                    cont = st.container(key="nav_active") if active else st.container()
+                    with cont:
+                        if st.button(t(key), key=f"nav_{page}", use_container_width=True):
+                            goto(page)
 
-    with lang_col:
-        new_lang = st.selectbox(
-            t("language"),
-            LANGUAGES,
-            index=LANGUAGES.index(st.session_state.lang) if st.session_state.lang in LANGUAGES else 0,
-            key="lang_select",
-            label_visibility="collapsed",
-        )
-        if new_lang != st.session_state.lang:
-            st.session_state.lang = new_lang
-            st.rerun()
+        with lang_col:
+            new_lang = st.selectbox(
+                t("language"),
+                LANGUAGES,
+                index=LANGUAGES.index(st.session_state.lang) if st.session_state.lang in LANGUAGES else 0,
+                key="lang_select",
+                label_visibility="collapsed",
+            )
+            if new_lang != st.session_state.lang:
+                st.session_state.lang = new_lang
+                st.rerun()
 
-    with auth_col:
-        if st.session_state.user:
-            name = st.session_state.user.get("name", "Me")
-            short = (name[:7] + "…") if len(name) > 8 else name
-            if st.button(f"👤 {short}", key="nav_profile", use_container_width=True):
-                goto("PROFILE")
-        else:
-            if st.button(f"🔑 {t('login')}", key="nav_auth", use_container_width=True):
-                goto("AUTH")
-
-    st.markdown('</div>', unsafe_allow_html=True)
+        with auth_col:
+            if st.session_state.user:
+                name = st.session_state.user.get("name", "Me")
+                short = (name[:7] + "…") if len(name) > 8 else name
+                with st.container(key="nav_cta"):
+                    if st.button(f"👤 {short}", key="nav_profile", use_container_width=True):
+                        goto("PROFILE")
+            else:
+                with st.container(key="nav_cta"):
+                    if st.button(f"🔑 {t('login')}", key="nav_auth", use_container_width=True):
+                        goto("AUTH")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -1862,6 +2428,29 @@ JOB_PORTALS = [
     ("KOWORK", "https://www.kowork.kr", "Support for migrant workers"),
 ]
 
+PORTAL_COLORS = {
+    "Wanted": "#3D5AFE", "Saramin": "#16A34A", "JobKorea": "#0EA5E9", "Work24": "#16233F",
+    "K-Work": "#7C3AED", "KoMate": "#E0703A", "Incruit": "#DB2777",
+    "Employment24": "#0891B2", "KOWORK": "#0B7A5E",
+}
+
+
+def render_portals(portals):
+    """Render premium brand-colored portal logo cards in a responsive grid."""
+    tx = TB([d for _, _, d in portals])
+    cards = ""
+    for name, url, desc in portals:
+        c = PORTAL_COLORS.get(name, "#16233F")
+        initials = name[0].upper()
+        cards += (
+            f'<a class="pcard" href="{url}" target="_blank">'
+            f'<div class="pmark" style="background:linear-gradient(135deg,{c},{c}bb);">{initials}</div>'
+            f'<div class="pname">{name}</div>'
+            f'<div class="pdesc">{tx.get(desc, desc)}</div>'
+            f'<div class="pgo">{t("visit")} →</div></a>'
+        )
+    st.markdown(f'<div class="portal-grid">{cards}</div>', unsafe_allow_html=True)
+
 
 def _link_card(title, links):
     # Translate the link labels (descriptive text); URLs and brand names are kept.
@@ -1874,42 +2463,33 @@ def _link_card(title, links):
 
 
 def page_home():
-    # ---- Hero ----
+    # ---- Hero (stats integrated, no overlap) ----
     st.markdown(
         f"""
         <div class="hero">
             <span class="hero-badge">{t('home_badge')}</span>
             <h1>{t('home_title')}</h1>
             <p>{t('home_subtitle')}</p>
+            <div class="hero-stats">
+                <div class="hstat"><div class="hi">🛂</div><div class="hv">24</div>
+                    <div class="hl">{t('kpi_visa')}</div></div>
+                <div class="hstat"><div class="hi">🏛️</div><div class="hv">386</div>
+                    <div class="hl">{t('kpi_uni')}</div></div>
+                <div class="hstat"><div class="hi">📊</div><div class="hv">LV.1~6</div>
+                    <div class="hl">{t('kpi_topik')}</div></div>
+                <div class="hstat"><div class="hi">💼</div><div class="hv">1,240</div>
+                    <div class="hl">{t('kpi_jobs')}</div></div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
+    st.write("")
     tabs = st.tabs([t("overview"), t("why_korea"), t("statistics"), t("resources")])
 
     # ───────────────────────── TAB 1: OVERVIEW ─────────────────────────
     with tabs[0]:
-        # KPI cards floating over hero
-        st.markdown(
-            f"""
-            <div class="kpi-wrap">
-                <div class="kpi-card"><div class="kpi-icon">🛂</div>
-                    <div class="kpi-value">24</div><div class="kpi-label">{t('kpi_visa')}</div></div>
-                <div class="kpi-card"><div class="kpi-icon">🏛️</div>
-                    <div class="kpi-value">386</div><div class="kpi-label">{t('kpi_uni')}</div></div>
-                <div class="kpi-card"><div class="kpi-icon">📊</div>
-                    <div class="kpi-value">LV.1~6</div><div class="kpi-label">{t('kpi_topik')}</div></div>
-                <div class="kpi-card"><div class="kpi-icon">💼</div>
-                    <div class="kpi-value">1,240</div><div class="kpi-label">{t('kpi_jobs')}</div></div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.write("")
-        divider()
-
         # Plan your journey
         section_header(t("plan_title"), t("plan_sub"))
         st.markdown(
@@ -1943,31 +2523,27 @@ def page_home():
 
         # Feature cards
         section_header(T("Explore the Platform"), t("plan_sub"))
-        fc1, fc2, fc3 = st.columns(3)
-        with fc1:
-            st.markdown(
-                f'<div class="upk-card"><span class="badge badge-new">NEW</span>'
-                f'<h3>🏛️ {t("feat_uni_t")}</h3><p>{t("feat_uni_d")}</p></div>',
-                unsafe_allow_html=True,
-            )
-            if st.button(f"🔎 {t('search')}", key="home_uni_btn", use_container_width=True):
-                goto("UNIVERSITY")
-        with fc2:
-            st.markdown(
-                f'<div class="upk-card"><span class="badge badge-hot">HOT</span>'
-                f'<h3>💼 {t("feat_job_t")}</h3><p>{t("feat_job_d")}</p></div>',
-                unsafe_allow_html=True,
-            )
-            if st.button(f"📋 {t('job_board')}", key="home_job_btn", use_container_width=True):
-                goto("JOB")
-        with fc3:
-            st.markdown(
-                f'<div class="upk-card"><span class="badge badge-ai">AI</span>'
-                f'<h3>🛂 {t("feat_visa_t")}</h3><p>{t("feat_visa_d")}</p></div>',
-                unsafe_allow_html=True,
-            )
-            if st.button(f"✅ {t('nav_visa')}", key="home_visa_btn", use_container_width=True):
-                goto("VISA")
+        feats = [
+            # (icon, accent, glow, shadow, badge_bg, badge, title_key, desc_key, btn, key, page)
+            ("🏛️", "#3D5AFE", "rgba(61,90,254,0.12)", "rgba(61,90,254,0.30)", "#ECEFFE",
+             "NEW", "feat_uni_t", "feat_uni_d", f"🔎 {t('search')}", "home_uni_btn", "UNIVERSITY"),
+            ("💼", "#12A580", "rgba(18,165,128,0.12)", "rgba(18,165,128,0.30)", "#E6F6F1",
+             "HOT", "feat_job_t", "feat_job_d", f"📋 {t('job_board')}", "home_job_btn", "JOB"),
+            ("🛂", "#E0703A", "rgba(224,112,58,0.12)", "rgba(224,112,58,0.30)", "#FBEEE6",
+             "AI", "feat_visa_t", "feat_visa_d", f"✅ {t('nav_visa')}", "home_visa_btn", "VISA"),
+        ]
+        fcols = st.columns(3)
+        for col, (icon, accent, glow, sh, bbg, badge, tk, dk, btn, bkey, page) in zip(fcols, feats):
+            with col:
+                st.markdown(
+                    f'<div class="feat-card" style="--fc:{accent};--fcglow:{glow};--fcsh:{sh};--fcbg:{bbg};">'
+                    f'<span class="feat-badge">{badge}</span>'
+                    f'<div class="feat-tile">{icon}</div>'
+                    f'<h3>{t(tk)}</h3><p>{t(dk)}</p></div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button(btn, key=bkey, use_container_width=True):
+                    goto(page)
 
         divider()
 
@@ -1985,15 +2561,7 @@ def page_home():
 
         # Job portal logos row
         section_header(t("job_portals"))
-        logo_cols = st.columns(5)
-        top5 = JOB_PORTALS[:5]
-        for i, (name, url, _) in enumerate(top5):
-            with logo_cols[i]:
-                st.markdown(
-                    f'<a class="portal-card" href="{url}" target="_blank" style="display:block;">'
-                    f'<h4>{name}</h4><p>{t("visit")} →</p></a>',
-                    unsafe_allow_html=True,
-                )
+        render_portals(JOB_PORTALS[:5])
 
     # ───────────────────────── TAB 2: WHY KOREA ─────────────────────────
     with tabs[1]:
@@ -2053,9 +2621,9 @@ def page_home():
                 fig = go.Figure()
                 fig.add_trace(go.Scatter(
                     x=years, y=counts, mode="lines+markers",
-                    line=dict(color="#0D3B8E", width=4),
-                    marker=dict(size=10, color="#00C897"),
-                    fill="tozeroy", fillcolor="rgba(13,59,142,0.08)",
+                    line=dict(color="#16233F", width=3),
+                    marker=dict(size=9, color="#3D5AFE"),
+                    fill="tozeroy", fillcolor="rgba(61,90,254,0.07)",
                 ))
                 fig.update_layout(
                     title="International Students in Korea (Trend)",
@@ -2068,7 +2636,7 @@ def page_home():
                 share = [33, 23, 6, 5, 4, 29]
                 fig2 = px.pie(
                     names=nats, values=share, hole=0.5,
-                    color_discrete_sequence=["#0D3B8E", "#00C897", "#FF6B35", "#1a56c4", "#7C9CF0", "#CBD5E1"],
+                    color_discrete_sequence=["#16233F", "#3D5AFE", "#12A580", "#2E4B8A", "#8AA0E8", "#CBD2E0"],
                 )
                 fig2.update_layout(
                     title="Top Nationalities", paper_bgcolor="white",
@@ -2082,7 +2650,7 @@ def page_home():
                 vals = [38, 22, 18, 12, 10]
                 fig3 = go.Figure(go.Bar(
                     x=vals, y=majors, orientation="h",
-                    marker=dict(color="#00C897"),
+                    marker=dict(color="#3D5AFE"),
                 ))
                 fig3.update_layout(
                     title="Popular Fields of Study (%)", paper_bgcolor="white", plot_bgcolor="white",
@@ -2092,7 +2660,7 @@ def page_home():
             with c4:
                 yrs = ["1yr", "2yr", "3yr", "4yr", "5yr"]
                 emp = [42, 58, 67, 74, 81]
-                fig4 = go.Figure(go.Bar(x=yrs, y=emp, marker=dict(color="#FF6B35")))
+                fig4 = go.Figure(go.Bar(x=yrs, y=emp, marker=dict(color="#12A580")))
                 fig4.update_layout(
                     title="Graduate Employment Rate (%)", paper_bgcolor="white", plot_bgcolor="white",
                     font=dict(family="Outfit"), height=340, margin=dict(t=50, b=20),
@@ -2808,17 +3376,7 @@ def page_job():
     # ───────────── TAB 3: PORTALS ─────────────
     with tabs[2]:
         section_header(t("job_portals_tab"), t("job_portals"), translate_sub=False)
-        tx = TB([desc for _, _, desc in JOB_PORTALS])
-        cols = st.columns(3)
-        for i, (name, url, desc) in enumerate(JOB_PORTALS):
-            with cols[i % 3]:
-                st.markdown(
-                    f'<a class="portal-card" href="{url}" target="_blank" style="display:block;">'
-                    f'<h4>🔗 {name}</h4><p>{tx.get(desc, desc)}</p>'
-                    f'<span class="tag tag-navy">{t("visit")} →</span></a>',
-                    unsafe_allow_html=True,
-                )
-                st.write("")
+        render_portals(JOB_PORTALS)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -2925,8 +3483,8 @@ def page_topik():
                 score = _gf(lv, "score_range", "score", default="—")
                 desc = localized(lv, "description") or _gf(lv, "description", "description_en", default="")
                 is_topik2 = "II" in str(level_name) or any(x in str(level_name) for x in ["3", "4", "5", "6"])
-                grad = ("linear-gradient(135deg,#00C897,#FF6B35)" if is_topik2
-                        else "linear-gradient(135deg,#0D3B8E,#1a56c4)")
+                grad = ("linear-gradient(135deg,#3D5AFE,#12A580)" if is_topik2
+                        else "linear-gradient(135deg,#16233F,#2E4B8A)")
                 with cols[i % 2]:
                     st.markdown(
                         f'<div class="upk-card" style="border-top:5px solid transparent;'
@@ -3157,7 +3715,7 @@ def page_visa():
                 unsafe_allow_html=True,
             )
             st.markdown(
-                '<a class="link-row" style="text-align:center;background:#0D3B8E;color:#fff;'
+                '<a class="link-row" style="text-align:center;background:#16233F;color:#fff;'
                 'margin-top:14px;font-weight:700;" href="https://www.hikorea.go.kr" target="_blank">'
                 f'{t("visa_apply")}</a>',
                 unsafe_allow_html=True,
@@ -3364,7 +3922,7 @@ def floating_chat():
             f"""
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
                 <div style="width:48px;height:48px;border-radius:50%;
-                    background:linear-gradient(135deg,#00C897,#0D3B8E);display:flex;
+                    background:linear-gradient(135deg,#3D5AFE,#16233F);display:flex;
                     align-items:center;justify-content:center;font-size:24px;">🤖</div>
                 <div><div style="font-size:18px;font-weight:800;color:#fff;">{t_val.get('chat_title','UNI Assistant')}</div>
                 <div style="font-size:12px;color:rgba(255,255,255,0.8);">{t_val.get('chat_sub','')}</div></div>
@@ -3674,7 +4232,7 @@ def page_profile():
         f"""
         <div style="display:flex;align-items:center;gap:18px;">
             <div style="width:70px;height:70px;border-radius:50%;
-                background:linear-gradient(135deg,#0D3B8E,#00C897);display:flex;
+                background:linear-gradient(135deg,#16233F,#3D5AFE);display:flex;
                 align-items:center;justify-content:center;font-size:32px;color:#fff;">👤</div>
             <div><h3 style="margin:0;">{user.get('name','Student')}</h3>
             <p style="margin:4px 0;color:var(--muted);">✉️ {user.get('email','')}</p>
@@ -3725,6 +4283,60 @@ def page_profile():
         goto("HOME")
 
 
+def render_footer():
+    L = [
+        "Your complete AI guide to studying, working and living in South Korea.",
+        "Built with care for international students, in 9 languages.",
+        "Explore", "Universities", "TOPIK", "Visas", "Jobs",
+        "Official", "Study in Korea", "HiKorea", "TOPIK Official", "Work24",
+        "Support", "AI Assistant", "Email Updates", "Sign In",
+        "Made with ❤️ for international students.", "Not affiliated with the Korean government.",
+    ]
+    tx = TB(L)
+    x = lambda s: tx.get(s, s)
+    st.markdown(
+        f"""
+        <div class="upk-footer">
+            <div class="upk-foot-logo">🎓 UniPath <span style="color:#06C684;">Korea</span></div>
+            <div style="max-width:520px;color:rgba(255,255,255,0.82);font-size:14px;margin-top:8px;">
+                {x(L[0])} {x(L[1])}
+            </div>
+            <div class="upk-foot-cols">
+                <div>
+                    <h5>{x("Explore")}</h5>
+                    <a href="#">🏛️ {x("Universities")}</a>
+                    <a href="#">📊 {x("TOPIK")}</a>
+                    <a href="#">🛂 {x("Visas")}</a>
+                    <a href="#">💼 {x("Jobs")}</a>
+                </div>
+                <div>
+                    <h5>{x("Official")}</h5>
+                    <a href="https://www.studyinkorea.go.kr" target="_blank">{x("Study in Korea")}</a>
+                    <a href="https://www.hikorea.go.kr" target="_blank">HiKorea</a>
+                    <a href="https://www.topik.go.kr" target="_blank">{x("TOPIK Official")}</a>
+                    <a href="https://www.work.go.kr" target="_blank">Work24</a>
+                </div>
+                <div>
+                    <h5>{x("Support")}</h5>
+                    <a href="#">💬 {x("AI Assistant")}</a>
+                    <a href="#">🔔 {x("Email Updates")}</a>
+                    <a href="#">🔑 {x("Sign In")}</a>
+                </div>
+                <div>
+                    <h5>9 Languages</h5>
+                    <div style="font-size:22px;line-height:1.6;">🇺🇸 🇰🇷 🇲🇳 🇯🇵 🇨🇳<br>🇻🇳 🇹🇭 🇲🇾 🇷🇺</div>
+                </div>
+            </div>
+            <div class="upk-foot-bottom">
+                <span>© 2026 UniPath Korea · {x("Made with ❤️ for international students.")}</span>
+                <span>{x("Not affiliated with the Korean government.")}</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 # ════════════════════════════════════════════════════════════════════════════
 # 20. MAIN ROUTER
 # ════════════════════════════════════════════════════════════════════════════
@@ -3753,6 +4365,7 @@ elif _page == "PROFILE":
 else:
     page_home()
 
+render_footer()
 floating_chat()
 admin_panel()
 
