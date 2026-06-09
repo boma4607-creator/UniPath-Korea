@@ -1,1726 +1,3432 @@
-import streamlit as st
-import pandas as pd
+"""
+UniPath Korea — The complete AI-powered guide for international students in South Korea.
+Single-file Streamlit application with multilingual support (9 languages),
+Agentic RAG chatbot, Supabase data layer, email notifications, auth and admin tools.
+
+Run:  streamlit run app.py
+"""
+
+# ════════════════════════════════════════════════════════════════════════════
+# 1. IMPORTS
+# ════════════════════════════════════════════════════════════════════════════
+import io
 import json
-import time
-import requests
-from datetime import datetime
-from supabase import create_client, Client
-from llama_index.core import VectorStoreIndex, StorageContext, Settings
-from llama_index.llms.google_genai import GoogleGenAI as Gemini
-from llama_index.embeddings.google_genai import GoogleGenAIEmbedding as GeminiEmbedding
-from llama_index.vector_stores.supabase import SupabaseVectorStore
-import streamlit.components.v1 as components
+import re
+from datetime import datetime, date
 
-# ==========================================
-# CONFIG & PREMIUM THEME
-# ==========================================
-st.set_page_config(page_title="UniPath Korea", page_icon="🎓", layout="wide", initial_sidebar_state="collapsed")
+import pandas as pd
+import streamlit as st
 
-st.markdown("""
+# Plotly is used for the statistics dashboards. Imported defensively so the app
+# still boots in minimal environments.
+try:
+    import plotly.graph_objects as go
+    import plotly.express as px
+    PLOTLY_READY = True
+except Exception:
+    PLOTLY_READY = False
+
+# Supabase client (data layer + vector store backend).
+try:
+    from supabase import create_client
+    SUPABASE_LIB = True
+except Exception:
+    SUPABASE_LIB = False
+
+# LlamaIndex + Google GenAI (RAG + LLM). Imported lazily-guarded so the UI renders
+# even when AI dependencies or secrets are missing.
+try:
+    from llama_index.llms.google_genai import GoogleGenAI as Gemini
+    from llama_index.embeddings.google_genai import GoogleGenAIEmbedding
+    from llama_index.vector_stores.supabase import SupabaseVectorStore
+    from llama_index.core import VectorStoreIndex, StorageContext, Settings
+    LLAMA_LIB = True
+except Exception:
+    LLAMA_LIB = False
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 2. PAGE CONFIG
+# ════════════════════════════════════════════════════════════════════════════
+st.set_page_config(
+    page_title="UniPath Korea — AI Guide for International Students",
+    page_icon="🎓",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 3. PREMIUM DESIGN SYSTEM (CSS)
+# ════════════════════════════════════════════════════════════════════════════
+CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Noto+Sans+KR:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap');
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
-    font-family: 'Outfit', 'Noto Sans KR', sans-serif !important;
-    background-color: #F0F4FF !important;
+:root {
+    --navy: #0D3B8E;
+    --navy-2: #1a56c4;
+    --emerald: #00C897;
+    --orange: #FF6B35;
+    --light: #F0F4FF;
+    --ink: #1E293B;
+    --muted: #64748B;
+    --line: #E2E8F0;
 }
 
-[data-testid="stMainBlockContainer"] { padding: 0 !important; max-width: 100% !important; }
-[data-testid="stVerticalBlock"] > [data-testid="stVerticalBlockBorderWrapper"] { padding: 0 !important; }
-section[data-testid="stSidebar"] { background: #0D3B8E !important; }
-section[data-testid="stSidebar"] * { color: white !important; }
+/* ---------- Base ---------- */
+html, body, [class*="css"], .stApp, .main {
+    font-family: 'Outfit', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--ink);
+}
+.stApp {
+    background: linear-gradient(180deg, #FFFFFF 0%, #F7F9FF 100%);
+}
+.block-container {
+    padding-top: 1.2rem;
+    padding-bottom: 4rem;
+    max-width: 1280px;
+}
+#MainMenu, footer, header[data-testid="stHeader"] {
+    visibility: hidden;
+    height: 0;
+}
+h1, h2, h3, h4, h5 { color: var(--ink); font-weight: 700; letter-spacing: -0.01em; }
+a { color: var(--navy); text-decoration: none; }
+a:hover { color: var(--emerald); }
+
+/* ---------- Inputs ---------- */
+.stTextInput input,
+.stNumberInput input,
+.stTextArea textarea,
+.stDateInput input,
+.stPasswordInput input,
+input[type="text"], input[type="password"], input[type="email"], input[type="number"] {
+    background: #FFFFFF !important;
+    border: 1.5px solid var(--navy) !important;
+    color: var(--ink) !important;
+    border-radius: 12px !important;
+    padding: 10px 14px !important;
+    transition: all .2s ease;
+}
+.stTextInput input:focus,
+.stTextArea textarea:focus,
+input:focus {
+    border-color: var(--emerald) !important;
+    box-shadow: 0 0 0 3px rgba(0,200,151,0.15) !important;
+    outline: none !important;
+}
+.stTextInput input::placeholder,
+.stTextArea textarea::placeholder { color: #94A3B8 !important; }
+
+/* ---------- Selectbox / Multiselect ---------- */
+.stSelectbox div[data-baseweb="select"] > div,
+.stMultiSelect div[data-baseweb="select"] > div {
+    background: #FFFFFF !important;
+    color: var(--ink) !important;
+    border: 1.5px solid var(--navy) !important;
+    border-radius: 12px !important;
+}
+div[data-baseweb="select"] span { color: var(--ink) !important; }
+
+/* Dropdown popovers / option lists */
+div[data-baseweb="popover"],
+div[data-baseweb="popover"] ul,
+ul[role="listbox"] {
+    background: #FFFFFF !important;
+    border-radius: 12px !important;
+    box-shadow: 0 12px 32px rgba(13,59,142,0.16) !important;
+}
+li[role="option"], div[role="option"] {
+    background: #FFFFFF !important;
+    color: var(--ink) !important;
+}
+li[role="option"]:hover, div[role="option"]:hover,
+li[aria-selected="true"], div[aria-selected="true"] {
+    background: #EEF2FF !important;
+    color: var(--navy) !important;
+}
+
+/* Multiselect chips */
+.stMultiSelect span[data-baseweb="tag"] {
+    background: var(--navy) !important;
+    color: #FFFFFF !important;
+    border-radius: 8px !important;
+}
+
+/* ---------- Buttons ---------- */
 .stButton > button {
-    border-radius: 50px !important; font-weight: 600 !important;
-    font-family: 'Outfit', sans-serif !important; transition: all 0.25s !important;
-    border: 1.5px solid #E2E8F0 !important; background: white !important; color: #475569 !important;
-}
-.stButton > button:hover { background: #0D3B8E !important; color: white !important; border-color: #0D3B8E !important; transform: translateY(-2px); }
-.stTextInput input, .stSelectbox select, .stTextArea textarea {
-    border-radius: 12px !important; border: 1.5px solid #E2E8F0 !important;
-    font-family: 'Outfit', sans-serif !important;
-}
-div[data-testid="stTabs"] button {
-    border-radius: 50px !important; font-weight: 600 !important;
-    font-family: 'Outfit', sans-serif !important;
-}
-
-/* NAV */
-.topnav {
-    background: white;
-    padding: 0 40px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid #E2E8F0;
-    position: sticky; top: 0; z-index: 999;
-    box-shadow: 0 2px 20px rgba(0,0,0,0.06);
-    height: 72px;
-}
-.nav-logo { display: flex; align-items: center; gap: 12px; }
-.nav-logo-icon {
-    width: 40px; height: 40px;
-    background: linear-gradient(135deg, #0D3B8E, #00C897);
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%);
+    color: #FFFFFF;
+    border: none;
     border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px;
+    padding: 10px 20px;
+    font-weight: 600;
+    font-family: 'Outfit', sans-serif;
+    transition: all .25s ease;
+    box-shadow: 0 6px 16px rgba(13,59,142,0.20);
 }
-.nav-logo-text { font-size: 1.4rem; font-weight: 800; color: #0D3B8E; }
-.nav-pills { display: flex; gap: 8px; }
-.nav-pill {
-    padding: 8px 20px; border-radius: 50px; cursor: pointer;
-    font-weight: 600; font-size: 0.9rem; transition: all 0.25s;
-    border: 1.5px solid transparent; color: #64748B; background: transparent;
-    text-decoration: none;
+.stButton > button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(13,59,142,0.30);
+    color: #FFFFFF;
 }
-.nav-pill:hover { background: #F0F4FF; color: #0D3B8E; }
-.nav-pill.active { background: #0D3B8E; color: white !important; }
+.stButton > button:active { transform: translateY(0); }
+.stButton > button:focus { color: #FFFFFF !important; box-shadow: 0 0 0 3px rgba(0,200,151,0.25) !important; }
 
-/* HERO */
-.hero-wrap {
+/* Download button */
+.stDownloadButton > button {
+    background: linear-gradient(135deg, var(--emerald) 0%, #00a87d 100%);
+    color: #FFFFFF; border: none; border-radius: 12px; font-weight: 600;
+}
+
+/* ---------- Tabs (pill style) ---------- */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+    background: transparent;
+    border-bottom: none;
+    flex-wrap: wrap;
+}
+.stTabs [data-baseweb="tab"] {
+    background: #FFFFFF;
+    border: 1.5px solid var(--line);
+    border-radius: 999px;
+    padding: 8px 18px;
+    color: var(--muted);
+    font-weight: 600;
+    transition: all .2s ease;
+}
+.stTabs [data-baseweb="tab"]:hover {
+    border-color: var(--navy);
+    color: var(--navy);
+}
+.stTabs [aria-selected="true"] {
+    background: var(--navy) !important;
+    color: #FFFFFF !important;
+    border-color: var(--navy) !important;
+    box-shadow: 0 6px 16px rgba(13,59,142,0.25);
+}
+.stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"] { display: none; }
+
+/* ---------- Expanders ---------- */
+.stExpander, details[data-testid="stExpander"] {
+    background: #FFFFFF !important;
+    border: 1.5px solid var(--navy) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 6px 20px rgba(13,59,142,0.06) !important;
+    overflow: hidden;
+}
+.streamlit-expanderHeader, summary {
+    background: #FFFFFF !important;
+    color: var(--ink) !important;
+    font-weight: 600 !important;
+    border-radius: 16px !important;
+}
+summary:hover { color: var(--navy) !important; }
+
+/* ---------- Sidebar (chat panel) ---------- */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, var(--navy) 0%, #0a2d6e 100%) !important;
+    width: 400px !important;
+}
+section[data-testid="stSidebar"] * { color: #FFFFFF; }
+section[data-testid="stSidebar"] .stTextInput input,
+section[data-testid="stSidebar"] .stTextArea textarea {
+    background: rgba(255,255,255,0.95) !important;
+    color: var(--ink) !important;
+    border: 1.5px solid rgba(255,255,255,0.4) !important;
+}
+section[data-testid="stSidebar"] .stMultiSelect div[data-baseweb="select"] > div {
+    background: rgba(255,255,255,0.95) !important;
+    border: 1.5px solid rgba(255,255,255,0.4) !important;
+}
+section[data-testid="stSidebar"] .stMultiSelect div[data-baseweb="select"] span { color: var(--ink) !important; }
+section[data-testid="stSidebar"] .stButton > button {
+    background: linear-gradient(135deg, var(--emerald) 0%, #00a87d 100%);
+    width: 100%;
+}
+section[data-testid="stSidebar"] [data-testid="stChatMessage"] {
+    background: rgba(255,255,255,0.10);
+    border-radius: 12px;
+    padding: 4px 8px;
+}
+/* Make the sidebar toggle button highly visible */
+button[kind="header"], [data-testid="collapsedControl"] {
+    background: var(--navy) !important;
+    color: #FFFFFF !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 12px rgba(13,59,142,0.35) !important;
+}
+
+/* ---------- Hero ---------- */
+.hero {
     background: linear-gradient(135deg, #0D3B8E 0%, #1a56c4 50%, #00C897 100%);
-    padding: 80px 60px 120px;
-    position: relative; overflow: hidden;
+    border-radius: 28px;
+    padding: 64px 48px 92px 48px;
+    color: #FFFFFF;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(13,59,142,0.25);
 }
-.hero-wrap::before {
-    content: '';
-    position: absolute; top: -50%; right: -10%;
-    width: 600px; height: 600px;
-    background: rgba(255,255,255,0.05);
+.hero::after {
+    content: "";
+    position: absolute;
+    right: -80px; top: -80px;
+    width: 320px; height: 320px;
+    background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
     border-radius: 50%;
 }
-.hero-wrap::after {
-    content: '';
-    position: absolute; bottom: -30%; left: 5%;
-    width: 400px; height: 400px;
-    background: rgba(0,200,151,0.1);
-    border-radius: 50%;
-}
-.hero-title {
-    font-size: 3.8rem; font-weight: 800; color: white;
-    line-height: 1.1; margin-bottom: 20px; position: relative; z-index: 1;
-}
-.hero-sub { font-size: 1.25rem; color: rgba(255,255,255,0.85); position: relative; z-index: 1; max-width: 600px; }
 .hero-badge {
     display: inline-block;
-    background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
-    color: white; padding: 6px 16px; border-radius: 50px;
-    font-size: 0.85rem; font-weight: 600; margin-bottom: 20px;
-    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.18);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #FFFFFF;
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 22px;
+}
+.hero h1 {
+    color: #FFFFFF !important;
+    font-size: 52px;
+    line-height: 1.08;
+    font-weight: 900;
+    margin: 0 0 16px 0;
+    letter-spacing: -0.02em;
+}
+.hero p {
+    color: rgba(255,255,255,0.92);
+    font-size: 19px;
+    max-width: 680px;
+    line-height: 1.6;
+    margin: 0;
 }
 
-/* KPI CARDS — float over hero */
-.kpi-section {
-    margin: -60px 40px 40px;
+/* ---------- KPI cards ---------- */
+.kpi-wrap {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
-    position: relative; z-index: 10;
+    gap: 18px;
+    margin-top: -60px;
+    position: relative;
+    z-index: 10;
+    padding: 0 12px;
 }
 .kpi-card {
-    background: white;
-    border-radius: 20px;
-    padding: 28px 24px;
-    box-shadow: 0 10px 40px rgba(13,59,142,0.12);
-    border-bottom: 4px solid #00C897;
+    background: #FFFFFF;
+    border-radius: 18px;
+    padding: 24px 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    border-bottom: 4px solid var(--emerald);
     text-align: center;
-    transition: transform 0.3s;
+    transition: transform .25s ease, box-shadow .25s ease;
 }
-.kpi-card:hover { transform: translateY(-5px); }
-.kpi-icon { font-size: 2rem; margin-bottom: 8px; }
-.kpi-val { font-size: 2.4rem; font-weight: 800; color: #0D3B8E; line-height: 1; }
-.kpi-lab { font-size: 0.78rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 6px; }
+.kpi-card:hover { transform: translateY(-6px); box-shadow: 0 18px 40px rgba(13,59,142,0.14); }
+.kpi-icon { font-size: 28px; margin-bottom: 6px; }
+.kpi-value { font-size: 34px; font-weight: 900; color: var(--navy); line-height: 1; }
+.kpi-label { font-size: 13px; color: var(--muted); font-weight: 600; margin-top: 8px; text-transform: uppercase; letter-spacing: .04em; }
 
-/* CONTENT CARDS */
-.g-card {
-    background: white;
-    border-radius: 20px;
-    padding: 28px;
-    border: 1.5px solid #E8F0FE;
-    margin-bottom: 20px;
-    transition: all 0.3s;
+/* ---------- Generic cards ---------- */
+.upk-card {
+    background: #FFFFFF;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+    border: 1px solid var(--line);
+    transition: transform .25s ease, box-shadow .25s ease;
+    height: 100%;
 }
-.g-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(13,59,142,0.1); border-color: #00C897; }
-.g-card h3 { color: #0D3B8E; font-size: 1.1rem; margin-bottom: 8px; }
-.g-card p { color: #64748B; font-size: 0.9rem; line-height: 1.6; }
+.upk-card:hover { transform: translateY(-4px); box-shadow: 0 16px 36px rgba(13,59,142,0.12); }
+.upk-card h3 { margin: 8px 0 8px 0; font-size: 20px; }
+.upk-card p { color: var(--muted); font-size: 15px; line-height: 1.6; margin: 0 0 12px 0; }
 
-/* TAG BADGES */
-.tag { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; margin-right: 6px; margin-bottom: 6px; }
-.tag-blue { background: #EEF2FF; color: #3730A3; }
-.tag-green { background: #ECFDF5; color: #065F46; }
-.tag-orange { background: #FFF7ED; color: #9A3412; }
-.tag-navy { background: #EEF2FF; color: #0D3B8E; }
+.section-title {
+    font-size: 30px;
+    font-weight: 800;
+    color: var(--ink);
+    margin: 8px 0 4px 0;
+    letter-spacing: -0.01em;
+}
+.section-sub { color: var(--muted); font-size: 16px; margin-bottom: 22px; }
 
-/* JOB CARD */
+/* ---------- Badges / tags ---------- */
+.badge { display:inline-block; padding:4px 12px; border-radius:999px; font-size:12px; font-weight:700; letter-spacing:.03em; }
+.badge-new { background: #E6FBF4; color: #00966f; border:1px solid #b8f0df; }
+.badge-hot { background: #FFEDE5; color: #d94e1f; border:1px solid #ffcab3; }
+.badge-ai  { background: #EAF0FF; color: var(--navy); border:1px solid #c3d4ff; }
+.tag { display:inline-block; padding:5px 12px; border-radius:8px; font-size:12.5px; font-weight:600; margin:3px 4px 3px 0; }
+.tag-navy { background:#EAF0FF; color:var(--navy); }
+.tag-green{ background:#E6FBF4; color:#00966f; }
+.tag-orange{ background:#FFEDE5; color:#d94e1f; }
+.tag-grey { background:#F1F5F9; color:#475569; }
+
+/* ---------- Step flow ---------- */
+.flow-wrap { display:flex; align-items:stretch; gap:0; flex-wrap:wrap; margin:18px 0; }
+.flow-step {
+    flex:1; min-width:180px; background:#FFFFFF; border:1px solid var(--line);
+    border-radius:16px; padding:22px 18px; text-align:center;
+    box-shadow:0 8px 22px rgba(0,0,0,0.05); transition:transform .2s ease;
+}
+.flow-step:hover { transform:translateY(-4px); border-color:var(--navy); }
+.flow-num { width:42px;height:42px;line-height:42px;border-radius:50%;margin:0 auto 12px auto;
+    background:linear-gradient(135deg,var(--navy),var(--emerald)); color:#FFF; font-weight:800; font-size:18px; }
+.flow-step h4 { margin:0 0 6px 0; font-size:16px; }
+.flow-step p { color:var(--muted); font-size:13px; margin:0; }
+.flow-arrow { display:flex; align-items:center; color:var(--emerald); font-size:26px; padding:0 6px; }
+
+/* ---------- Link card ---------- */
+.link-card {
+    background:#FFFFFF; border:1px solid var(--line); border-radius:16px;
+    padding:20px; box-shadow:0 8px 22px rgba(0,0,0,0.05); height:100%;
+}
+.link-card h4 { margin:0 0 14px 0; font-size:17px; color:var(--navy); }
+.link-row { display:block; padding:9px 12px; border-radius:10px; color:var(--ink); font-size:14px;
+    font-weight:500; transition:all .18s ease; border:1px solid transparent; }
+.link-row:hover { background:#EEF2FF; color:var(--navy); border-color:#c3d4ff; }
+
+/* ---------- Job card ---------- */
 .job-card {
-    background: white; border-radius: 16px; padding: 24px;
-    border: 1.5px solid #E8F0FE; margin-bottom: 16px; transition: all 0.3s;
-    display: flex; gap: 20px; align-items: flex-start;
+    background:#FFFFFF; border:1px solid var(--line); border-radius:16px;
+    padding:20px 22px; box-shadow:0 8px 22px rgba(0,0,0,0.05); margin-bottom:16px;
+    display:flex; align-items:center; gap:18px; transition:transform .2s ease, box-shadow .2s ease;
 }
-.job-card:hover { border-color: #00C897; box-shadow: 0 8px 30px rgba(0,200,151,0.1); }
-.job-logo {
-    width: 56px; height: 56px; border-radius: 14px;
-    background: linear-gradient(135deg, #0D3B8E, #00C897);
-    display: flex; align-items: center; justify-content: center;
-    color: white; font-size: 1.4rem; flex-shrink: 0;
-}
-.match-badge {
-    background: linear-gradient(135deg, #00C897, #00a87d);
-    color: white; padding: 3px 10px; border-radius: 20px;
-    font-size: 0.75rem; font-weight: 700;
-}
+.job-card:hover { transform:translateY(-3px); box-shadow:0 14px 32px rgba(13,59,142,0.12); }
+.job-icon { width:60px;height:60px;border-radius:16px;display:flex;align-items:center;justify-content:center;
+    font-size:28px; background:linear-gradient(135deg,var(--navy),var(--emerald)); color:#FFF; flex-shrink:0; }
+.job-mid { flex:1; }
+.job-mid h4 { margin:0 0 4px 0; font-size:18px; }
+.job-mid .job-meta { color:var(--muted); font-size:14px; margin-bottom:8px; }
+.job-mid .job-ai { color:var(--navy); font-size:13px; font-style:italic; }
+.match-badge { background:linear-gradient(135deg,var(--emerald),#00a87d); color:#FFF; font-weight:800;
+    border-radius:12px; padding:10px 14px; text-align:center; min-width:84px; }
+.match-badge small { display:block; font-weight:600; font-size:10px; opacity:.9; }
 
-/* PORTAL LOGOS */
-.portals-row {
-    display: flex; gap: 24px; justify-content: center;
-    padding: 32px 0; flex-wrap: wrap;
-}
-.portal-chip {
-    padding: 12px 28px; border-radius: 50px;
-    border: 2px solid #E2E8F0; background: white;
-    font-weight: 700; font-size: 1rem; color: #475569;
-    transition: all 0.25s; cursor: pointer;
-    text-decoration: none; display: block;
-}
-.portal-chip:hover { border-color: #0D3B8E; color: #0D3B8E; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(13,59,142,0.1); }
+/* ---------- Info / data tables ---------- */
+.upk-table { width:100%; border-collapse:separate; border-spacing:0; border-radius:14px; overflow:hidden;
+    box-shadow:0 8px 22px rgba(0,0,0,0.05); border:1px solid var(--line); }
+.upk-table th { background:var(--navy); color:#FFF; padding:12px 14px; text-align:left; font-size:13px;
+    font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+.upk-table td { padding:11px 14px; border-bottom:1px solid var(--line); font-size:14px; color:var(--ink); background:#FFF; }
+.upk-table tr:last-child td { border-bottom:none; }
+.upk-table tr:hover td { background:#F7F9FF; }
 
-/* STEP FLOW */
-.step-flow { display: flex; gap: 0; align-items: center; margin: 20px 0; }
-.step-item {
-    flex: 1; background: white; border-radius: 16px; padding: 20px 16px;
-    text-align: center; border: 1.5px solid #E8F0FE; position: relative;
-}
-.step-item::after {
-    content: '→'; position: absolute; right: -18px; top: 50%; transform: translateY(-50%);
-    color: #00C897; font-size: 1.5rem; font-weight: 700; z-index: 1;
-}
-.step-item:last-child::after { display: none; }
-.step-num {
-    width: 36px; height: 36px; border-radius: 50%;
-    background: linear-gradient(135deg, #0D3B8E, #00C897);
-    color: white; font-weight: 700; font-size: 1rem;
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 10px;
-}
+/* ---------- Stat block ---------- */
+.stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin:16px 0; }
+.stat-box { background:linear-gradient(135deg,#FFFFFF,#F0F4FF); border:1px solid var(--line);
+    border-radius:18px; padding:26px 20px; text-align:center; box-shadow:0 8px 22px rgba(0,0,0,0.05); }
+.stat-big { font-size:38px; font-weight:900; background:linear-gradient(135deg,var(--navy),var(--emerald));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; line-height:1; }
+.stat-cap { color:var(--muted); font-size:14px; font-weight:600; margin-top:10px; }
 
-/* TOPIK TABLE */
-.topik-table { width: 100%; border-collapse: collapse; }
-.topik-table th { background: #0D3B8E; color: white; padding: 12px 16px; text-align: left; font-size: 0.85rem; }
-.topik-table td { padding: 12px 16px; border-bottom: 1px solid #F1F5F9; font-size: 0.9rem; }
-.topik-table tr:hover td { background: #F8FAFF; }
+/* ---------- Metric boxes ---------- */
+.metric-box { background:#FFFFFF; border:1px solid var(--line); border-radius:16px; padding:20px; text-align:center;
+    box-shadow:0 8px 22px rgba(0,0,0,0.05); }
+.metric-box .mv { font-size:32px; font-weight:900; color:var(--navy); }
+.metric-box .ml { font-size:13px; color:var(--muted); font-weight:600; text-transform:uppercase; }
 
-/* VISA TABS */
-.visa-card { background: white; border-radius: 20px; padding: 28px; border: 1.5px solid #E8F0FE; }
-.visa-req-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #F1F5F9; }
-.visa-req-icon { color: #00C897; font-size: 1.2rem; flex-shrink: 0; }
+/* ---------- Visa card ---------- */
+.visa-card { background:linear-gradient(135deg,#FFFFFF,#F0F4FF); border:1px solid var(--line);
+    border-radius:20px; padding:30px; box-shadow:0 12px 30px rgba(13,59,142,0.08); }
+.visa-head { display:flex; align-items:center; gap:16px; margin-bottom:8px; }
+.visa-head .vi { width:64px;height:64px;border-radius:18px;display:flex;align-items:center;justify-content:center;
+    font-size:32px; background:linear-gradient(135deg,var(--navy),var(--emerald)); color:#FFF; }
+.info-pill { background:#FFFFFF; border:1px solid var(--line); border-radius:14px; padding:14px 18px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.04); }
+.info-pill .ip-l { font-size:12px; color:var(--muted); font-weight:600; text-transform:uppercase; }
+.info-pill .ip-v { font-size:18px; color:var(--navy); font-weight:800; }
+.check-item { display:flex; align-items:flex-start; gap:10px; padding:7px 0; font-size:14.5px; color:var(--ink); }
+.check-item .ck { color:var(--emerald); font-weight:900; flex-shrink:0; }
 
-/* FLOATING CHAT */
-.chat-fab {
-    position: fixed; bottom: 30px; right: 30px;
-    width: 64px; height: 64px; border-radius: 50%;
-    background: linear-gradient(135deg, #0D3B8E, #00C897);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; z-index: 9999; font-size: 28px;
-    box-shadow: 0 8px 30px rgba(13,59,142,0.4);
-    animation: chatpulse 2s ease-in-out infinite;
-    transition: transform 0.3s;
+/* ---------- Hero CTA / chat button ---------- */
+.chat-cta {
+    display:inline-flex; align-items:center; gap:10px;
+    background:linear-gradient(135deg,var(--orange),#ff8c5a); color:#FFF;
+    padding:14px 26px; border-radius:999px; font-weight:700; font-size:16px;
+    box-shadow:0 10px 26px rgba(255,107,53,0.35); animation:pulse 2.4s infinite;
 }
-.chat-fab:hover { transform: scale(1.1); }
-@keyframes chatpulse {
-    0%, 100% { box-shadow: 0 8px 30px rgba(13,59,142,0.4); }
-    50% { box-shadow: 0 8px 50px rgba(0,200,151,0.5), 0 0 0 12px rgba(13,59,142,0.08); }
+@keyframes pulse {
+    0% { box-shadow:0 0 0 0 rgba(255,107,53,0.45); }
+    70% { box-shadow:0 0 0 18px rgba(255,107,53,0); }
+    100% { box-shadow:0 0 0 0 rgba(255,107,53,0); }
 }
 
-/* SECTION HEADERS */
-.sec-header { padding: 40px 40px 20px; }
-.sec-title { font-size: 1.8rem; font-weight: 800; color: #0D3B8E; margin-bottom: 8px; }
-.sec-sub { color: #64748B; font-size: 1rem; }
-.content-pad { padding: 0 40px 60px; }
+/* ---------- Navbar ---------- */
+.nav-logo { font-size:24px; font-weight:900; color:var(--navy); letter-spacing:-0.02em; }
+.nav-logo span { color:var(--emerald); }
 
-/* HIDE STREAMLIT DEFAULT ELEMENTS */
-#MainMenu, footer, header { visibility: hidden; }
-[data-testid="stDecoration"] { display: none; }
+/* ---------- Reason / feature grid ---------- */
+.reason-card { background:#FFFFFF; border:1px solid var(--line); border-radius:16px; padding:22px;
+    box-shadow:0 8px 22px rgba(0,0,0,0.05); transition:transform .2s ease; height:100%; }
+.reason-card:hover { transform:translateY(-4px); border-color:var(--emerald); }
+.reason-card .ri { font-size:30px; }
+.reason-card h4 { margin:10px 0 6px 0; font-size:17px; }
+.reason-card p { color:var(--muted); font-size:14px; margin:0; line-height:1.55; }
 
-/* TEXT COLORS */
-p, span, li, td, th { color: #1E293B; }
-h1, h2, h3, h4 { color: #0D3B8E; }
-.g-card p { color: #475569 !important; }
-.g-card h3 { color: #0D3B8E !important; }
-.sec-title { color: #0D3B8E !important; }
-.sec-sub { color: #475569 !important; }
-.kpi-val { color: #0D3B8E !important; }
-.kpi-lab { color: #64748B !important; }
-[data-testid="stMarkdownContainer"] p { color: #1E293B !important; }
-[data-testid="stMarkdownContainer"] li { color: #475569 !important; }
-label { color: #374151 !important; font-weight: 500 !important; }
+/* ---------- News card ---------- */
+.news-card { background:#FFFFFF; border:1px solid var(--line); border-radius:16px; padding:20px;
+    box-shadow:0 8px 22px rgba(0,0,0,0.05); margin-bottom:14px; }
+.news-card h4 { margin:8px 0 6px 0; font-size:17px; }
+.news-card p { color:var(--muted); font-size:14px; margin:0 0 8px 0; }
+.news-meta { font-size:12px; color:#94A3B8; }
 
-/* TABS */
-.stTabs [data-baseweb="tab"] { color: #475569 !important; font-weight: 600 !important; background: white !important; border-radius: 50px !important; }
-.stTabs [aria-selected="true"] { color: #0D3B8E !important; background: #EEF2FF !important; }
+/* ---------- Misc ---------- */
+.soft-divider { height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent); margin:28px 0; border:none; }
+.glass-note { background:rgba(13,59,142,0.04); border:1px solid #c3d4ff; border-radius:14px; padding:16px 20px; color:var(--navy); font-size:14px; }
+.portal-card { background:#FFFFFF; border:1px solid var(--line); border-radius:16px; padding:20px; text-align:center;
+    box-shadow:0 8px 22px rgba(0,0,0,0.05); transition:transform .2s ease; height:100%; }
+.portal-card:hover { transform:translateY(-4px); border-color:var(--navy); }
+.portal-card h4 { margin:6px 0; font-size:16px; color:var(--navy); }
+.portal-card p { color:var(--muted); font-size:13px; margin:0 0 10px 0; }
 
-/* INPUT FIELDS — white background, navy border */
-input, textarea { background-color: #FFFFFF !important; color: #1E293B !important; border: 1.5px solid #0D3B8E !important; border-radius: 12px !important; }
-[data-baseweb="input"] { background-color: #FFFFFF !important; border: 1.5px solid #0D3B8E !important; border-radius: 12px !important; }
-[data-baseweb="input"] input { background-color: #FFFFFF !important; color: #1E293B !important; }
-[data-testid="stTextInput"] input { background-color: #FFFFFF !important; color: #1E293B !important; border: 1.5px solid #0D3B8E !important; }
-
-/* SELECTBOX — white background */
-[data-baseweb="select"] > div { background-color: #FFFFFF !important; border: 1.5px solid #0D3B8E !important; border-radius: 12px !important; color: #1E293B !important; }
-[data-baseweb="select"] span { color: #1E293B !important; }
-
-/* DROPDOWN LIST — white background, readable text */
-[data-baseweb="popover"] { background-color: #FFFFFF !important; border: 1.5px solid #0D3B8E !important; border-radius: 12px !important; box-shadow: 0 8px 30px rgba(13,59,142,0.15) !important; }
-[data-baseweb="menu"] { background-color: #FFFFFF !important; }
-[role="listbox"] { background-color: #FFFFFF !important; }
-[role="option"] { background-color: #FFFFFF !important; color: #1E293B !important; font-weight: 500 !important; }
-[role="option"]:hover { background-color: #EEF2FF !important; color: #0D3B8E !important; }
-[aria-selected="true"][role="option"] { background-color: #EEF2FF !important; color: #0D3B8E !important; }
-li[role="option"] { background-color: #FFFFFF !important; color: #1E293B !important; }
-
-/* EXPANDER */
-[data-testid="stExpander"] { background: #FFFFFF !important; border: 1.5px solid #C7D7F5 !important; border-radius: 16px !important; }
-[data-testid="stExpander"] summary { color: #0D3B8E !important; font-weight: 600 !important; }
-[data-testid="stExpander"] p { color: #1E293B !important; }
-[data-testid="stExpander"] summary:hover { background: #EEF2FF !important; border-radius: 16px !important; }
-
-/* MULTISELECT */
-[data-baseweb="tag"] { background-color: #EEF2FF !important; color: #0D3B8E !important; border: 1px solid #0D3B8E !important; }
-[data-testid="stMultiSelect"] [data-baseweb="select"] > div { background-color: #FFFFFF !important; }
-
-/* CHECKBOX */
-[data-testid="stCheckbox"] label { color: #1E293B !important; }
-
-/* METRIC */
-[data-testid="stMetric"] label { color: #64748B !important; }
-[data-testid="stMetricValue"] { color: #0D3B8E !important; }
-
-/* INFO / SUCCESS / WARNING boxes */
-[data-testid="stAlert"] { border-radius: 12px !important; }
+@media (max-width: 980px) {
+    .kpi-wrap, .stat-grid { grid-template-columns:repeat(2,1fr); }
+    .hero h1 { font-size:38px; }
+    .flow-arrow { display:none; }
+}
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(CSS, unsafe_allow_html=True)
 
-# ==========================================
-# MULTILINGUAL DICTIONARY
-# ==========================================
+# ════════════════════════════════════════════════════════════════════════════
+# 4. MULTILINGUAL SYSTEM — 9 LANGUAGES
+# ════════════════════════════════════════════════════════════════════════════
+LANGUAGES = [
+    "🇺🇸 English", "🇰🇷 한국어", "🇲🇳 Монгол", "🇯🇵 日本語", "🇨🇳 中文",
+    "🇻🇳 Tiếng Việt", "🇹🇭 ภาษาไทย", "🇲🇾 Bahasa Melayu", "🇷🇺 Русский",
+]
+
 TR = {
     "🇺🇸 English": {
-        "home": "HOME", "university": "UNIVERSITY", "career": "CAREER", "job": "JOB", "topik": "TOPIK", "visa": "VISA",
-        "research": "Research", "school": "School Info", "apply": "Apply", "admission": "Admission",
-        "cv_check": "CV Check", "mock_interview": "Mock Interview", "job_board": "Job Board", "my_matches": "My Matches",
-        "schedule": "Schedule", "register": "Register", "levels": "Levels", "study_tips": "Study Tips",
-        "title": "Your Future in Korea\nStarts Here", "subtitle": "Unified AI platform for international students — study, work, and live in South Korea.",
-        "visa_types": "Visa Types", "universities": "Universities", "topik_level": "TOPIK Level", "job_openings": "Job Openings",
-        "search": "🔍 Search", "ask_ai": "Ask AI →", "upload": "Upload", "submit": "Submit", "next": "Next →", "back": "← Back",
-        "contact": "Contact", "graduation_req": "Graduation Requirements", "documents": "Required Documents", "intl_office": "International Office",
-        "upload_cv": "Upload CV / Resume", "start_interview": "▶ Start AI Interview", "get_feedback": "Get Feedback",
-        "filter_visa": "Filter by Visa Type", "ai_summary": "AI Summary", "match_cv": "Match with CV",
-        "test_date": "Test Date", "registration": "Registration Period", "results": "Results Date", "fee": "Fee",
-        "requirements": "Requirements", "process": "Application Process", "fees": "Fees",
-        "subscribe": "Subscribe to Alerts", "topics": "Select Alert Topics", "email_label": "Your Email Address",
-        "placeholder": "Ask me anything about Korea...", "source_badge": "✓ Verified Source", "close": "✕ Close",
-        "upload_pdf": "Upload PDF Knowledge Base", "vectorizing": "Vectorizing...", "stats": "Platform Stats", "password": "Admin Password",
-        "success": "✅ Success!", "error": "Error occurred", "warning": "Warning", "info": "Information",
-        "plan_title": "Plan Your Journey", "plan_1": "Choose University", "plan_2": "Prepare TOPIK",
-        "plan_3": "Apply for Visa", "plan_4": "Start Life in Korea",
-        "ai_counselor": "AI Counselor", "new_badge": "NEW", "hot_badge": "HOT", "uni_sub": "Find the right university for your future in Korea", "career_sub": "Build your career in Korea with AI tools", "job_sub": "Find your perfect job in Korea", "topik_sub": "Korean language proficiency test guide", "visa_sub": "Visa guide for international students", "search_placeholder": "Search university name...", "region": "Region", "gks_support": "GKS Support", "all": "All", "register_title": "Create Account", "login_title": "Sign In", "name_label": "Full Name", "email_reg": "Email", "password_reg": "Password", "confirm_password": "Confirm Password", "register_btn": "Create Account", "login_btn": "Sign In", "already_have": "Already have account?", "no_account": "No account?", "logout_btn": "Sign Out", "my_profile": "My Profile", "saved_unis": "Saved Universities", "saved_jobs": "Saved Jobs", "notif_settings": "Notification Settings", "notif_topik": "TOPIK Schedule Alerts", "notif_visa": "Visa Updates", "notif_jobs": "New Job Openings", "notif_news": "University News", "notif_lang": "Receive alerts in your language",
+        "app_name": "UniPath", "tagline": "Your AI guide to studying, working & living in Korea",
+        "nav_home": "HOME", "nav_university": "UNIVERSITY", "nav_career": "CAREER",
+        "nav_job": "JOB", "nav_topik": "TOPIK", "nav_visa": "VISA", "nav_life": "LIFE",
+        "login": "Sign In", "logout": "Sign Out", "register": "Create Account",
+        "profile": "Profile", "language": "Language", "search": "Search", "apply": "Apply",
+        "submit": "Submit", "back": "Back", "save": "Save", "cancel": "Cancel",
+        "next": "Next", "skip": "Skip", "download": "Download", "visit": "Visit",
+        "loading": "Loading...", "error": "Sorry, something went wrong. Please try again.",
+        "empty": "No data available yet. Please check back soon.",
+        "home_badge": "🌏 AI-Powered Platform for International Students",
+        "home_title": "Your complete path to studying in South Korea",
+        "home_subtitle": "Universities, scholarships, TOPIK, visas, jobs and daily life — everything an international student needs, powered by AI and available in 9 languages.",
+        "kpi_visa": "Visa Types", "kpi_uni": "Universities", "kpi_topik": "TOPIK Level", "kpi_jobs": "Job Openings",
+        "plan_title": "Plan Your Journey", "plan_sub": "Four simple steps from application to your new life in Korea",
+        "step1_t": "Choose University", "step1_d": "Find your best-fit school and major",
+        "step2_t": "Prepare TOPIK", "step2_d": "Reach the Korean level you need",
+        "step3_t": "Apply for Visa", "step3_d": "Get the right visa for your goals",
+        "step4_t": "Start Life in Korea", "step4_d": "Housing, banking, health & more",
+        "feat_uni_t": "University Search", "feat_uni_d": "Explore 380+ universities, majors, tuition and scholarships in one place.",
+        "feat_job_t": "Job Board", "feat_job_d": "AI-matched jobs for international talent, with visa-friendly employers.",
+        "feat_visa_t": "Visa Checker", "feat_visa_d": "Understand D-2, D-4, E-7, F-2 and F-5 visas with AI guidance.",
+        "official_res": "Official Resources", "official_sub": "Trusted government and university links, all in one place",
+        "res_study": "🎓 Study Resources", "res_immig": "🛂 Immigration Guide", "res_tests": "📝 Tests & Employment",
+        "job_portals": "Popular Job Portals", "why_korea": "Why Korea", "statistics": "Statistics", "resources": "Resources",
+        "overview": "Overview", "latest_news": "Latest News",
+        "uni_research": "Research", "uni_school": "School Info", "uni_apply": "Apply",
+        "uni_admission": "Admission", "uni_scholar": "Scholarships",
+        "filter_keyword": "Keyword", "filter_region": "Region", "filter_gks": "GKS Eligible",
+        "kw_ph": "Search universities or majors...", "all": "All", "yes": "Yes", "no": "No",
+        "loc_contact": "📍 Location & Contact", "tuition_support": "💰 Tuition & Support",
+        "grad_req": "🎓 Graduation Requirements", "avail_majors": "📚 Available Majors",
+        "btn_website": "🌐 Official Website", "btn_apply": "📝 Apply Now", "btn_intl": "🌏 International Office",
+        "career_cv": "CV Check", "career_interview": "Mock Interview", "career_res": "Resources",
+        "cv_title": "AI CV Review", "cv_sub": "Upload your resume and get instant feedback for the Korean job market",
+        "cv_upload": "Upload your CV (PDF or DOCX)", "cv_target": "Target job title",
+        "cv_target_ph": "e.g. Software Engineer", "cv_analyze": "🔍 Analyze My CV",
+        "cv_score": "Overall Score", "cv_grammar": "Grammar", "cv_structure": "Structure",
+        "cv_recs": "Recommendations", "cv_culture": "Korean Culture Tips",
+        "iv_title": "🎤 AI Mock Interview", "iv_sub": "Practice with realistic questions and get AI feedback",
+        "iv_role": "Job role", "iv_role_ph": "e.g. Software Engineer, Marketing Manager",
+        "iv_info": "Enter a job role above to begin your mock interview.",
+        "iv_start": "🚀 Start Interview", "iv_answer": "Your answer", "iv_answer_ph": "Type your answer (at least 10 characters)...",
+        "iv_min": "Please write at least 10 characters.", "iv_feedback": "Generating AI feedback...",
+        "iv_overall": "Overall", "iv_confidence": "Confidence", "iv_fit": "Cultural Fit",
+        "iv_strengths": "Strengths", "iv_improve": "Improvements", "iv_again": "🔄 Try Again",
+        "job_board": "Job Board", "job_matches": "My Matches", "job_portals_tab": "Portals",
+        "job_search_ph": "Search role or company...", "job_visa_filter": "Visa Type",
+        "job_match": "MATCH", "job_apply": "Apply", "job_upload_cv": "Upload your CV to find best-matching jobs",
+        "job_find": "🎯 Find My Matches",
+        "topik_schedule": "Schedule", "topik_register": "Register", "topik_levels": "Levels",
+        "topik_tips": "Study Tips", "topik_centers": "Test Centers",
+        "topik_fee": "Fee Information", "topik_reg_btn": "Register at topik.go.kr →",
+        "tc_search": "Search by city...",
+        "visa_req": "Requirements", "visa_docs": "Documents", "visa_proc": "Processing Time",
+        "visa_for": "For", "visa_fee": "Fee", "visa_dur": "Duration", "visa_apply": "Apply on HiKorea →",
+        "life_housing": "Housing", "life_transport": "Transport", "life_health": "Health",
+        "life_banking": "Banking", "life_safety": "Safety",
+        "auth_welcome": "Welcome to UniPath", "auth_login_sub": "Sign in to save universities, jobs and get alerts",
+        "auth_reg_sub": "Create a free account and personalize your journey",
+        "full_name": "Full name", "email": "Email", "password": "Password",
+        "confirm_pw": "Confirm password", "lang_pref": "Language preference",
+        "notif_pref": "Notification preferences",
+        "notif_topik": "TOPIK schedule alerts", "notif_visa": "Visa policy updates",
+        "notif_job": "New job openings", "notif_uni": "University news", "notif_scholar": "Scholarship announcements",
+        "have_account": "Already have an account? Sign In", "no_account": "No account? Create one",
+        "pw_mismatch": "Passwords do not match.", "invalid_email": "Please enter a valid email address.",
+        "reg_success": "🎉 Account created! Welcome aboard.", "login_fail": "Account not found. Please register first.",
+        "login_success": "Welcome back!", "fill_all": "Please fill in all fields.",
+        "my_profile": "My Profile", "saved_uni": "🎓 Saved Universities", "saved_jobs": "💼 Saved Jobs",
+        "edit_notif": "Edit notification preferences", "profile_saved": "Preferences saved!",
+        "none_yet": "Nothing saved yet.",
+        "chat_title": "UNI Assistant", "chat_sub": "Ask me anything about life in Korea",
+        "placeholder": "Ask me anything about Korea...", "ask_ai": "💬 Ask AI Assistant",
+        "subscribe": "Get Email Updates", "email_label": "Your email", "topics": "Topics of interest",
+        "sub_success": "✅ Subscribed! You'll get updates in your language.",
+        "admin_panel": "⚙️ Admin Panel", "admin_pw": "Admin Password", "admin_ok": "✅ Authorized",
+        "admin_pdf": "📄 PDF Upload", "admin_stats": "📊 Stats",
     },
     "🇰🇷 한국어": {
-        "home": "홈", "university": "대학교", "career": "커리어", "job": "취업", "topik": "TOPIK", "visa": "비자",
-        "research": "대학 검색", "school": "학교 정보", "apply": "지원하기", "admission": "입학 가이드",
-        "cv_check": "이력서 첨삭", "mock_interview": "AI 모의면접", "job_board": "채용 공고", "my_matches": "맞춤 채용",
-        "schedule": "시험 일정", "register": "접수 안내", "levels": "급수 정보", "study_tips": "공부 팁",
-        "title": "당신의 한국 유학 여정\n여기서 시작하세요", "subtitle": "대학 진학부터 취업, 비자까지 올인원 AI 플랫폼",
-        "visa_types": "비자 종류", "universities": "대학교 수", "topik_level": "토픽 레벨", "job_openings": "채용 공고",
-        "search": "🔍 검색", "ask_ai": "AI 질문 →", "upload": "업로드", "submit": "제출", "next": "다음 →", "back": "← 이전",
-        "contact": "연락처", "graduation_req": "졸업 요건", "documents": "필요 서류", "intl_office": "국제교류처",
-        "upload_cv": "이력서 업로드", "start_interview": "▶ AI 면접 시작", "get_feedback": "피드백 받기",
-        "filter_visa": "비자별 필터", "ai_summary": "AI 요약", "match_cv": "이력서 매칭",
-        "test_date": "시험 일자", "registration": "원서 접수", "results": "성적 발표", "fee": "응시료",
-        "requirements": "자격 요건", "process": "신청 절차", "fees": "수수료",
-        "subscribe": "알림 구독하기", "topics": "주제 선택", "email_label": "이메일 주소",
-        "placeholder": "무엇이든 물어보세요...", "source_badge": "✓ 검증된 출처", "close": "✕ 닫기",
-        "upload_pdf": "PDF 지식베이스 업로드", "vectorizing": "벡터화 중...", "stats": "플랫폼 통계", "password": "관리자 암호",
-        "success": "✅ 성공!", "error": "오류 발생", "warning": "주의", "info": "안내",
-        "plan_title": "유학 여정 계획", "plan_1": "대학교 선택", "plan_2": "TOPIK 준비",
-        "plan_3": "비자 신청", "plan_4": "한국 생활 시작",
-        "ai_counselor": "AI 상담사", "new_badge": "NEW", "hot_badge": "인기", "uni_sub": "한국 유학을 위한 최적의 대학교를 찾아보세요", "career_sub": "AI 도구로 한국 커리어를 쌓아보세요", "job_sub": "나에게 맞는 일자리를 찾아보세요", "topik_sub": "한국어능력시험 완벽 가이드", "visa_sub": "외국인 유학생 및 취업자를 위한 비자 안내", "search_placeholder": "대학교 이름 검색...", "region": "지역", "gks_support": "GKS 지원", "all": "전체", "register_title": "회원가입", "login_title": "로그인", "name_label": "이름", "email_reg": "이메일", "password_reg": "비밀번호", "confirm_password": "비밀번호 확인", "register_btn": "가입하기", "login_btn": "로그인", "already_have": "이미 계정이 있으신가요?", "no_account": "계정이 없으신가요?", "logout_btn": "로그아웃", "my_profile": "내 프로필", "saved_unis": "저장된 대학교", "saved_jobs": "저장된 채용공고", "notif_settings": "알림 설정", "notif_topik": "TOPIK 일정 알림", "notif_visa": "비자 업데이트", "notif_jobs": "새 채용공고", "notif_news": "대학 뉴스", "notif_lang": "모국어로 알림 받기",
+        "app_name": "유니패스", "tagline": "한국 유학·취업·생활을 위한 AI 가이드",
+        "nav_home": "홈", "nav_university": "대학", "nav_career": "커리어",
+        "nav_job": "취업", "nav_topik": "토픽", "nav_visa": "비자", "nav_life": "생활",
+        "login": "로그인", "logout": "로그아웃", "register": "회원가입",
+        "profile": "프로필", "language": "언어", "search": "검색", "apply": "지원",
+        "submit": "제출", "back": "뒤로", "save": "저장", "cancel": "취소",
+        "next": "다음", "skip": "건너뛰기", "download": "다운로드", "visit": "방문",
+        "loading": "불러오는 중...", "error": "죄송합니다. 문제가 발생했습니다. 다시 시도해 주세요.",
+        "empty": "아직 데이터가 없습니다. 곧 업데이트됩니다.",
+        "home_badge": "🌏 외국인 유학생을 위한 AI 플랫폼",
+        "home_title": "한국 유학을 위한 완벽한 길잡이",
+        "home_subtitle": "대학, 장학금, 토픽, 비자, 취업, 생활까지 — 외국인 유학생에게 필요한 모든 것을 AI가 9개 언어로 안내합니다.",
+        "kpi_visa": "비자 종류", "kpi_uni": "대학교", "kpi_topik": "토픽 등급", "kpi_jobs": "채용 공고",
+        "plan_title": "여정을 계획하세요", "plan_sub": "지원부터 한국 생활까지 4단계로 안내합니다",
+        "step1_t": "대학 선택", "step1_d": "나에게 맞는 학교와 전공 찾기",
+        "step2_t": "토픽 준비", "step2_d": "필요한 한국어 등급 달성하기",
+        "step3_t": "비자 신청", "step3_d": "목표에 맞는 비자 받기",
+        "step4_t": "한국 생활 시작", "step4_d": "주거, 은행, 건강 등",
+        "feat_uni_t": "대학 검색", "feat_uni_d": "380개 이상의 대학, 전공, 등록금, 장학금을 한곳에서.",
+        "feat_job_t": "채용 게시판", "feat_job_d": "외국인 인재를 위한 AI 매칭 채용, 비자 친화 기업.",
+        "feat_visa_t": "비자 확인", "feat_visa_d": "D-2, D-4, E-7, F-2, F-5 비자를 AI와 함께 이해하세요.",
+        "official_res": "공식 자료", "official_sub": "신뢰할 수 있는 정부 및 대학 링크를 한곳에",
+        "res_study": "🎓 유학 자료", "res_immig": "🛂 출입국 안내", "res_tests": "📝 시험 & 취업",
+        "job_portals": "인기 채용 사이트", "why_korea": "왜 한국인가", "statistics": "통계", "resources": "자료",
+        "overview": "개요", "latest_news": "최신 뉴스",
+        "uni_research": "리서치", "uni_school": "학교 정보", "uni_apply": "지원",
+        "uni_admission": "입학", "uni_scholar": "장학금",
+        "filter_keyword": "키워드", "filter_region": "지역", "filter_gks": "GKS 대상",
+        "kw_ph": "대학 또는 전공 검색...", "all": "전체", "yes": "예", "no": "아니오",
+        "loc_contact": "📍 위치 및 연락처", "tuition_support": "💰 등록금 및 지원",
+        "grad_req": "🎓 졸업 요건", "avail_majors": "📚 개설 전공",
+        "btn_website": "🌐 공식 웹사이트", "btn_apply": "📝 지금 지원", "btn_intl": "🌏 국제처",
+        "career_cv": "이력서 점검", "career_interview": "모의 면접", "career_res": "자료",
+        "cv_title": "AI 이력서 검토", "cv_sub": "이력서를 업로드하고 한국 취업 시장 맞춤 피드백을 받아보세요",
+        "cv_upload": "이력서 업로드 (PDF 또는 DOCX)", "cv_target": "지원 직무",
+        "cv_target_ph": "예: 소프트웨어 엔지니어", "cv_analyze": "🔍 이력서 분석",
+        "cv_score": "종합 점수", "cv_grammar": "문법", "cv_structure": "구성",
+        "cv_recs": "추천 사항", "cv_culture": "한국 문화 팁",
+        "iv_title": "🎤 AI 모의 면접", "iv_sub": "실전 질문으로 연습하고 AI 피드백을 받으세요",
+        "iv_role": "직무", "iv_role_ph": "예: 소프트웨어 엔지니어, 마케팅 매니저",
+        "iv_info": "위에 직무를 입력하면 모의 면접이 시작됩니다.",
+        "iv_start": "🚀 면접 시작", "iv_answer": "답변", "iv_answer_ph": "답변을 입력하세요 (최소 10자)...",
+        "iv_min": "최소 10자 이상 입력해 주세요.", "iv_feedback": "AI 피드백 생성 중...",
+        "iv_overall": "종합", "iv_confidence": "자신감", "iv_fit": "문화 적합도",
+        "iv_strengths": "강점", "iv_improve": "개선점", "iv_again": "🔄 다시 시도",
+        "job_board": "채용 게시판", "job_matches": "내 매칭", "job_portals_tab": "포털",
+        "job_search_ph": "직무 또는 회사 검색...", "job_visa_filter": "비자 종류",
+        "job_match": "매칭", "job_apply": "지원", "job_upload_cv": "이력서를 업로드하면 최적의 일자리를 찾아드립니다",
+        "job_find": "🎯 내 매칭 찾기",
+        "topik_schedule": "일정", "topik_register": "접수", "topik_levels": "등급",
+        "topik_tips": "학습 팁", "topik_centers": "시험장",
+        "topik_fee": "응시료 안내", "topik_reg_btn": "topik.go.kr에서 접수 →",
+        "tc_search": "도시로 검색...",
+        "visa_req": "요건", "visa_docs": "서류", "visa_proc": "처리 기간",
+        "visa_for": "대상", "visa_fee": "수수료", "visa_dur": "체류 기간", "visa_apply": "하이코리아에서 신청 →",
+        "life_housing": "주거", "life_transport": "교통", "life_health": "건강",
+        "life_banking": "은행", "life_safety": "안전",
+        "auth_welcome": "유니패스에 오신 것을 환영합니다", "auth_login_sub": "로그인하고 대학·일자리 저장 및 알림을 받으세요",
+        "auth_reg_sub": "무료 계정을 만들고 나만의 여정을 시작하세요",
+        "full_name": "이름", "email": "이메일", "password": "비밀번호",
+        "confirm_pw": "비밀번호 확인", "lang_pref": "선호 언어",
+        "notif_pref": "알림 설정",
+        "notif_topik": "토픽 일정 알림", "notif_visa": "비자 정책 업데이트",
+        "notif_job": "신규 채용 공고", "notif_uni": "대학 소식", "notif_scholar": "장학금 공지",
+        "have_account": "이미 계정이 있으신가요? 로그인", "no_account": "계정이 없으신가요? 가입하기",
+        "pw_mismatch": "비밀번호가 일치하지 않습니다.", "invalid_email": "유효한 이메일을 입력해 주세요.",
+        "reg_success": "🎉 계정이 생성되었습니다! 환영합니다.", "login_fail": "계정을 찾을 수 없습니다. 먼저 가입해 주세요.",
+        "login_success": "다시 오신 것을 환영합니다!", "fill_all": "모든 항목을 입력해 주세요.",
+        "my_profile": "내 프로필", "saved_uni": "🎓 저장한 대학", "saved_jobs": "💼 저장한 일자리",
+        "edit_notif": "알림 설정 수정", "profile_saved": "설정이 저장되었습니다!",
+        "none_yet": "아직 저장된 항목이 없습니다.",
+        "chat_title": "UNI 어시스턴트", "chat_sub": "한국 생활에 대해 무엇이든 물어보세요",
+        "placeholder": "한국에 대해 무엇이든 물어보세요...", "ask_ai": "💬 AI 어시스턴트에게 질문",
+        "subscribe": "이메일 업데이트 받기", "email_label": "이메일", "topics": "관심 주제",
+        "sub_success": "✅ 구독 완료! 선택한 언어로 소식을 보내드립니다.",
+        "admin_panel": "⚙️ 관리자 패널", "admin_pw": "관리자 비밀번호", "admin_ok": "✅ 인증됨",
+        "admin_pdf": "📄 PDF 업로드", "admin_stats": "📊 통계",
     },
     "🇲🇳 Монгол": {
-        "home": "НҮҮР", "university": "ИХ СУРГУУЛЬ", "career": "КАРЬЕР", "job": "АЖИЛ", "topik": "TOPIK", "visa": "ВИЗ",
-        "research": "Хайлт", "school": "Сургуулийн мэдээлэл", "apply": "Өргөдөл", "admission": "Элсэлт",
-        "cv_check": "CV Шалгах", "mock_interview": "Ярилцлага дасгал", "job_board": "Ажлын байр", "my_matches": "Тохирох ажил",
-        "schedule": "Хуваарь", "register": "Бүртгэл", "levels": "Түвшин", "study_tips": "Зөвлөгөө",
-        "title": "БНСУ дахь таны ирээдүй\nЭндээс эхэлнэ", "subtitle": "Сургууль, ажил, визний нэгдсэн AI систем",
-        "visa_types": "Визний төрөл", "universities": "Их сургууль", "topik_level": "TOPIK түвшин", "job_openings": "Нээлттэй ажлын байр",
-        "search": "🔍 Хайх", "ask_ai": "AI-аас асуух →", "upload": "Хуулах", "submit": "Илгээх", "next": "Дараах →", "back": "← Буцах",
-        "contact": "Холбоо барих", "graduation_req": "Төгсөх шаардлага", "documents": "Бичиг баримт", "intl_office": "Гадаад харилцааны алба",
-        "upload_cv": "CV хуулах", "start_interview": "▶ Ярилцлага эхлэх", "get_feedback": "Үнэлгээ авах",
-        "filter_visa": "Визээр шүүх", "ai_summary": "AI дүгнэлт", "match_cv": "CV тохирох",
-        "test_date": "Шалгалтын огноо", "registration": "Бүртгүүлэх хугацаа", "results": "Үр дүн", "fee": "Төлбөр",
-        "requirements": "Шаардлага", "process": "Процесс", "fees": "Хураамж",
-        "subscribe": "Мэдэгдэл авах", "topics": "Сэдэв сонгох", "email_label": "И-мэйл хаяг",
-        "placeholder": "Асуух зүйлээ бичнэ үү...", "source_badge": "✓ Баталгаат эх сурвалж", "close": "✕ Хаах",
-        "upload_pdf": "PDF дата оруулах", "vectorizing": "Боловсруулж байна...", "stats": "Статистик", "password": "Нууц үг",
-        "success": "✅ Амжилттай!", "error": "Алдаа гарлаа", "warning": "Анхаар", "info": "Мэдээлэл",
-        "plan_title": "Аяллын төлөвлөгөө", "plan_1": "Сургууль сонгох", "plan_2": "TOPIK бэлдэх",
-        "plan_3": "Виз авах", "plan_4": "Солонгост амьдрах",
-        "ai_counselor": "AI Зөвлөх", "new_badge": "ШИНЭ", "hot_badge": "ТОП", "uni_sub": "БНСУ-д суралцах тохирох их сургуулиа олоорой", "career_sub": "AI хэрэгслээр карьераа хөгжүүл", "job_sub": "Тохирох ажлын байраа ол", "topik_sub": "TOPIK шалгалтын бүрэн гарын авлага", "visa_sub": "Гадаадын оюутан, ажилчдын визний мэдээлэл", "search_placeholder": "Сургуулийн нэр хайх...", "region": "Бүс нутаг", "gks_support": "GKS тэтгэлэг", "all": "Бүгд", "register_title": "Бүртгүүлэх", "login_title": "Нэвтрэх", "name_label": "Бүтэн нэр", "email_reg": "И-мэйл", "password_reg": "Нууц үг", "confirm_password": "Нууц үг давтах", "register_btn": "Бүртгүүлэх", "login_btn": "Нэвтрэх", "already_have": "Бүртгэлтэй юу?", "no_account": "Бүртгэлгүй юу?", "logout_btn": "Гарах", "my_profile": "Миний профайл", "saved_unis": "Хадгалсан сургуулиуд", "saved_jobs": "Хадгалсан ажлын байр", "notif_settings": "Мэдэгдлийн тохиргоо", "notif_topik": "TOPIK хуваарийн мэдэгдэл", "notif_visa": "Визний шинэчлэл", "notif_jobs": "Шинэ ажлын байр", "notif_news": "Сургуулийн мэдээ", "notif_lang": "Өөрийн хэлээр мэдэгдэл авах",
+        "app_name": "ЮниПат", "tagline": "Солонгост суралцах, ажиллах, амьдрах AI хөтөч",
+        "nav_home": "НҮҮР", "nav_university": "ИХ СУРГУУЛЬ", "nav_career": "КАРЬЕР",
+        "nav_job": "АЖИЛ", "nav_topik": "ТОПИК", "nav_visa": "ВИЗ", "nav_life": "АМЬДРАЛ",
+        "login": "Нэвтрэх", "logout": "Гарах", "register": "Бүртгүүлэх",
+        "profile": "Профайл", "language": "Хэл", "search": "Хайх", "apply": "Бүртгэл өгөх",
+        "submit": "Илгээх", "back": "Буцах", "save": "Хадгалах", "cancel": "Цуцлах",
+        "next": "Дараах", "skip": "Алгасах", "download": "Татах", "visit": "Зочлох",
+        "loading": "Уншиж байна...", "error": "Уучлаарай, алдаа гарлаа. Дахин оролдоно уу.",
+        "empty": "Одоогоор мэдээлэл алга. Удахгүй шинэчлэгдэнэ.",
+        "home_badge": "🌏 Гадаад оюутнуудад зориулсан AI платформ",
+        "home_title": "Солонгост суралцах таны бүрэн зам",
+        "home_subtitle": "Их сургууль, тэтгэлэг, ТОПИК, виз, ажил, амьдрал — гадаад оюутанд хэрэгтэй бүхнийг AI-аар, 9 хэл дээр.",
+        "kpi_visa": "Визийн төрөл", "kpi_uni": "Их сургууль", "kpi_topik": "ТОПИК түвшин", "kpi_jobs": "Ажлын байр",
+        "plan_title": "Аяллаа төлөвлө", "plan_sub": "Бүртгэлээс эхлээд Солонгос дахь амьдрал хүртэл 4 алхам",
+        "step1_t": "Их сургууль сонгох", "step1_d": "Өөрт тохирох сургууль, мэргэжлээ ол",
+        "step2_t": "ТОПИК бэлдэх", "step2_d": "Шаардлагатай солонгос хэлний түвшинд хүр",
+        "step3_t": "Виз авах", "step3_d": "Зорилгодоо тохирох визээ ав",
+        "step4_t": "Амьдралаа эхлүүл", "step4_d": "Орон сууц, банк, эрүүл мэнд гэх мэт",
+        "feat_uni_t": "Их сургуулийн хайлт", "feat_uni_d": "380+ их сургууль, мэргэжил, төлбөр, тэтгэлгийг нэг дороос.",
+        "feat_job_t": "Ажлын самбар", "feat_job_d": "Гадаад мэргэжилтнүүдэд AI-аар тохирсон, виз дэмждэг ажил олгогчид.",
+        "feat_visa_t": "Виз шалгагч", "feat_visa_d": "D-2, D-4, E-7, F-2, F-5 визийг AI-ийн тусламжтай ойлго.",
+        "official_res": "Албан ёсны эх сурвалж", "official_sub": "Засгийн газар, их сургуулийн найдвартай холбоосууд нэг дор",
+        "res_study": "🎓 Сурлагын эх сурвалж", "res_immig": "🛂 Цагаачлалын заавар", "res_tests": "📝 Шалгалт ба Ажил",
+        "job_portals": "Алдартай ажлын сайтууд", "why_korea": "Яагаад Солонгос", "statistics": "Статистик", "resources": "Эх сурвалж",
+        "overview": "Тойм", "latest_news": "Сүүлийн мэдээ",
+        "uni_research": "Судалгаа", "uni_school": "Сургуулийн мэдээлэл", "uni_apply": "Бүртгэл",
+        "uni_admission": "Элсэлт", "uni_scholar": "Тэтгэлэг",
+        "filter_keyword": "Түлхүүр үг", "filter_region": "Бүс", "filter_gks": "GKS тэнцэх",
+        "kw_ph": "Их сургууль эсвэл мэргэжил хайх...", "all": "Бүгд", "yes": "Тийм", "no": "Үгүй",
+        "loc_contact": "📍 Байршил ба холбоо барих", "tuition_support": "💰 Төлбөр ба дэмжлэг",
+        "grad_req": "🎓 Төгсөлтийн шаардлага", "avail_majors": "📚 Боломжит мэргэжил",
+        "btn_website": "🌐 Албан ёсны вэб", "btn_apply": "📝 Одоо бүртгүүлэх", "btn_intl": "🌏 Олон улсын алба",
+        "career_cv": "CV шалгах", "career_interview": "Дадлага ярилцлага", "career_res": "Эх сурвалж",
+        "cv_title": "AI CV шинжилгээ", "cv_sub": "CV-гээ оруулж, Солонгосын ажлын зах зээлд тохирсон зөвлөгөө аваарай",
+        "cv_upload": "CV оруулах (PDF эсвэл DOCX)", "cv_target": "Зорилтот ажлын байр",
+        "cv_target_ph": "ж: Программ хангамжийн инженер", "cv_analyze": "🔍 CV-г шинжлэх",
+        "cv_score": "Нийт оноо", "cv_grammar": "Хэл зүй", "cv_structure": "Бүтэц",
+        "cv_recs": "Зөвлөмж", "cv_culture": "Солонгос соёлын зөвлөгөө",
+        "iv_title": "🎤 AI дадлага ярилцлага", "iv_sub": "Бодит асуултаар дадлага хийж AI зөвлөгөө аваарай",
+        "iv_role": "Ажлын байр", "iv_role_ph": "ж: Программист, Маркетингийн менежер",
+        "iv_info": "Ярилцлага эхлүүлэхийн тулд дээр ажлын байраа оруулна уу.",
+        "iv_start": "🚀 Ярилцлага эхлэх", "iv_answer": "Таны хариулт", "iv_answer_ph": "Хариултаа бичнэ үү (хамгийн багадаа 10 тэмдэгт)...",
+        "iv_min": "Дор хаяж 10 тэмдэгт бичнэ үү.", "iv_feedback": "AI зөвлөгөө бэлдэж байна...",
+        "iv_overall": "Нийт", "iv_confidence": "Өөртөө итгэх", "iv_fit": "Соёлын нийцэл",
+        "iv_strengths": "Давуу тал", "iv_improve": "Сайжруулах зүйл", "iv_again": "🔄 Дахин оролдох",
+        "job_board": "Ажлын самбар", "job_matches": "Миний тохирол", "job_portals_tab": "Портал",
+        "job_search_ph": "Ажил эсвэл компани хайх...", "job_visa_filter": "Визийн төрөл",
+        "job_match": "ТОХИРОЛ", "job_apply": "Бүртгүүлэх", "job_upload_cv": "CV-гээ оруулж хамгийн тохирох ажлаа олоорой",
+        "job_find": "🎯 Тохиролоо олох",
+        "topik_schedule": "Хуваарь", "topik_register": "Бүртгэл", "topik_levels": "Түвшин",
+        "topik_tips": "Сурах зөвлөгөө", "topik_centers": "Шалгалтын төв",
+        "topik_fee": "Хураамжийн мэдээлэл", "topik_reg_btn": "topik.go.kr дээр бүртгүүлэх →",
+        "tc_search": "Хотоор хайх...",
+        "visa_req": "Шаардлага", "visa_docs": "Бичиг баримт", "visa_proc": "Боловсруулах хугацаа",
+        "visa_for": "Зориулалт", "visa_fee": "Хураамж", "visa_dur": "Хугацаа", "visa_apply": "HiKorea дээр өргөдөл гаргах →",
+        "life_housing": "Орон сууц", "life_transport": "Тээвэр", "life_health": "Эрүүл мэнд",
+        "life_banking": "Банк", "life_safety": "Аюулгүй байдал",
+        "auth_welcome": "ЮниПат-д тавтай морил", "auth_login_sub": "Нэвтэрч их сургууль, ажлаа хадгалж мэдэгдэл аваарай",
+        "auth_reg_sub": "Үнэгүй бүртгэл үүсгэж аяллаа хувийн болгоорой",
+        "full_name": "Бүтэн нэр", "email": "Имэйл", "password": "Нууц үг",
+        "confirm_pw": "Нууц үг баталгаажуулах", "lang_pref": "Хэлний сонголт",
+        "notif_pref": "Мэдэгдлийн тохиргоо",
+        "notif_topik": "ТОПИК хуваарийн мэдэгдэл", "notif_visa": "Визийн бодлогын шинэчлэл",
+        "notif_job": "Шинэ ажлын байр", "notif_uni": "Их сургуулийн мэдээ", "notif_scholar": "Тэтгэлгийн зар",
+        "have_account": "Бүртгэлтэй юу? Нэвтрэх", "no_account": "Бүртгэлгүй юу? Үүсгэх",
+        "pw_mismatch": "Нууц үг таарахгүй байна.", "invalid_email": "Зөв имэйл оруулна уу.",
+        "reg_success": "🎉 Бүртгэл үүслээ! Тавтай морил.", "login_fail": "Бүртгэл олдсонгүй. Эхлээд бүртгүүлнэ үү.",
+        "login_success": "Дахин тавтай морил!", "fill_all": "Бүх талбарыг бөглөнө үү.",
+        "my_profile": "Миний профайл", "saved_uni": "🎓 Хадгалсан их сургууль", "saved_jobs": "💼 Хадгалсан ажил",
+        "edit_notif": "Мэдэгдлийн тохиргоо засах", "profile_saved": "Тохиргоо хадгалагдлаа!",
+        "none_yet": "Одоогоор хадгалсан зүйл алга.",
+        "chat_title": "UNI Туслах", "chat_sub": "Солонгос дахь амьдралын талаар юу ч асуу",
+        "placeholder": "Солонгосын талаар юу ч асуу...", "ask_ai": "💬 AI Туслахаас асуух",
+        "subscribe": "Имэйл шинэчлэл авах", "email_label": "Таны имэйл", "topics": "Сонирхсон сэдэв",
+        "sub_success": "✅ Бүртгэгдлээ! Таны хэл дээр мэдээ илгээнэ.",
+        "admin_panel": "⚙️ Админ самбар", "admin_pw": "Админ нууц үг", "admin_ok": "✅ Зөвшөөрөгдсөн",
+        "admin_pdf": "📄 PDF оруулах", "admin_stats": "📊 Статистик",
     },
     "🇯🇵 日本語": {
-        "home": "ホーム", "university": "大学", "career": "キャリア", "job": "求人", "topik": "TOPIK", "visa": "ビザ",
-        "research": "大学検索", "school": "学校案内", "apply": "出願", "admission": "入学準備",
-        "cv_check": "履歴書添削", "mock_interview": "AI模擬面接", "job_board": "求人掲示板", "my_matches": "マッチング求人",
-        "schedule": "試験日程", "register": "申し込み方法", "levels": "級数情報", "study_tips": "学習コツ",
-        "title": "韓国での未来は\nここから始まる", "subtitle": "留学・就職・ビザをサポートする統合AIプラットフォーム",
-        "visa_types": "ビザの種類", "universities": "大学数", "topik_level": "TOPIKレベル", "job_openings": "求人数",
-        "search": "🔍 検索", "ask_ai": "AIに聞く →", "upload": "アップロード", "submit": "送信", "next": "次へ →", "back": "← 戻る",
-        "contact": "連絡先", "graduation_req": "卒業要件", "documents": "必要書類", "intl_office": "国際課",
-        "upload_cv": "履歴書アップロード", "start_interview": "▶ AI面接開始", "get_feedback": "フィードバックを見る",
-        "filter_visa": "ビザで絞り込む", "ai_summary": "AI要約", "match_cv": "履歴書マッチング",
-        "test_date": "試験日", "registration": "受付期間", "results": "結果発表", "fee": "受験料",
-        "requirements": "資格要件", "process": "申請手続き", "fees": "手数料",
-        "subscribe": "通知を受け取る", "topics": "トピックを選ぶ", "email_label": "メールアドレス",
-        "placeholder": "何でも聞いてください...", "source_badge": "✓ 公式情報", "close": "✕ 閉じる",
-        "upload_pdf": "PDFナレッジ登録", "vectorizing": "解析中...", "stats": "統計情報", "password": "管理者パスワード",
-        "success": "✅ 完了！", "error": "エラーが発生しました", "warning": "警告", "info": "インフォ",
-        "plan_title": "留学プランを立てる", "plan_1": "大学を選ぶ", "plan_2": "TOPIKを準備",
-        "plan_3": "ビザを申請", "plan_4": "韓国生活スタート",
-        "ai_counselor": "AIカウンセラー", "new_badge": "NEW", "hot_badge": "人気", "uni_sub": "韓国留学に最適な大学を探そう", "career_sub": "AIツールで韓国でのキャリアを築こう", "job_sub": "あなたに合った仕事を見つけよう", "topik_sub": "TOPIK試験完全ガイド", "visa_sub": "留学生・就労者向けビザ案内", "search_placeholder": "大学名で検索...", "region": "地域", "gks_support": "GKS奨学金", "all": "すべて", "register_title": "アカウント登録", "login_title": "ログイン", "name_label": "氏名", "email_reg": "メールアドレス", "password_reg": "パスワード", "confirm_password": "パスワード確認", "register_btn": "登録する", "login_btn": "ログイン", "already_have": "すでにアカウントをお持ちですか？", "no_account": "アカウントをお持ちでない方", "logout_btn": "ログアウト", "my_profile": "マイプロフィール", "saved_unis": "保存した大学", "saved_jobs": "保存した求人", "notif_settings": "通知設定", "notif_topik": "TOPIK日程通知", "notif_visa": "ビザ情報更新", "notif_jobs": "新着求人", "notif_news": "大学ニュース", "notif_lang": "母国語で通知を受け取る",
+        "app_name": "ユニパス", "tagline": "韓国での留学・就職・生活のためのAIガイド",
+        "nav_home": "ホーム", "nav_university": "大学", "nav_career": "キャリア",
+        "nav_job": "求人", "nav_topik": "TOPIK", "nav_visa": "ビザ", "nav_life": "生活",
+        "login": "ログイン", "logout": "ログアウト", "register": "新規登録",
+        "profile": "プロフィール", "language": "言語", "search": "検索", "apply": "応募",
+        "submit": "送信", "back": "戻る", "save": "保存", "cancel": "キャンセル",
+        "next": "次へ", "skip": "スキップ", "download": "ダウンロード", "visit": "訪問",
+        "loading": "読み込み中...", "error": "申し訳ありません。問題が発生しました。もう一度お試しください。",
+        "empty": "まだデータがありません。後ほどご確認ください。",
+        "home_badge": "🌏 外国人留学生のためのAIプラットフォーム",
+        "home_title": "韓国留学への完全なロードマップ",
+        "home_subtitle": "大学、奨学金、TOPIK、ビザ、就職、生活まで — 留学生に必要なすべてをAIが9言語でご案内します。",
+        "kpi_visa": "ビザの種類", "kpi_uni": "大学", "kpi_topik": "TOPIKレベル", "kpi_jobs": "求人",
+        "plan_title": "あなたの旅を計画する", "plan_sub": "出願から韓国での生活まで4つのステップ",
+        "step1_t": "大学を選ぶ", "step1_d": "自分に合った学校と専攻を見つける",
+        "step2_t": "TOPIK準備", "step2_d": "必要な韓国語レベルに到達する",
+        "step3_t": "ビザ申請", "step3_d": "目標に合ったビザを取得する",
+        "step4_t": "韓国生活開始", "step4_d": "住居、銀行、健康など",
+        "feat_uni_t": "大学検索", "feat_uni_d": "380以上の大学、専攻、学費、奨学金を一か所で。",
+        "feat_job_t": "求人ボード", "feat_job_d": "外国人材向けのAIマッチング求人、ビザ対応の雇用主。",
+        "feat_visa_t": "ビザチェッカー", "feat_visa_d": "D-2、D-4、E-7、F-2、F-5ビザをAIで理解。",
+        "official_res": "公式リソース", "official_sub": "信頼できる政府・大学リンクを一か所に",
+        "res_study": "🎓 学習リソース", "res_immig": "🛂 出入国ガイド", "res_tests": "📝 試験・就職",
+        "job_portals": "人気の求人サイト", "why_korea": "なぜ韓国", "statistics": "統計", "resources": "リソース",
+        "overview": "概要", "latest_news": "最新ニュース",
+        "uni_research": "リサーチ", "uni_school": "学校情報", "uni_apply": "出願",
+        "uni_admission": "入学", "uni_scholar": "奨学金",
+        "filter_keyword": "キーワード", "filter_region": "地域", "filter_gks": "GKS対象",
+        "kw_ph": "大学や専攻を検索...", "all": "すべて", "yes": "はい", "no": "いいえ",
+        "loc_contact": "📍 所在地・連絡先", "tuition_support": "💰 学費・支援",
+        "grad_req": "🎓 卒業要件", "avail_majors": "📚 利用可能な専攻",
+        "btn_website": "🌐 公式サイト", "btn_apply": "📝 今すぐ出願", "btn_intl": "🌏 国際課",
+        "career_cv": "履歴書チェック", "career_interview": "模擬面接", "career_res": "リソース",
+        "cv_title": "AI履歴書レビュー", "cv_sub": "履歴書をアップロードして韓国の就職市場向けの即時フィードバックを",
+        "cv_upload": "履歴書をアップロード (PDFまたはDOCX)", "cv_target": "希望職種",
+        "cv_target_ph": "例：ソフトウェアエンジニア", "cv_analyze": "🔍 履歴書を分析",
+        "cv_score": "総合スコア", "cv_grammar": "文法", "cv_structure": "構成",
+        "cv_recs": "推奨事項", "cv_culture": "韓国文化のヒント",
+        "iv_title": "🎤 AI模擬面接", "iv_sub": "リアルな質問で練習しAIフィードバックを受ける",
+        "iv_role": "職種", "iv_role_ph": "例：ソフトウェアエンジニア、マーケティングマネージャー",
+        "iv_info": "上に職種を入力すると模擬面接が始まります。",
+        "iv_start": "🚀 面接開始", "iv_answer": "あなたの回答", "iv_answer_ph": "回答を入力 (10文字以上)...",
+        "iv_min": "10文字以上入力してください。", "iv_feedback": "AIフィードバックを生成中...",
+        "iv_overall": "総合", "iv_confidence": "自信", "iv_fit": "文化適合",
+        "iv_strengths": "強み", "iv_improve": "改善点", "iv_again": "🔄 もう一度",
+        "job_board": "求人ボード", "job_matches": "マイマッチ", "job_portals_tab": "ポータル",
+        "job_search_ph": "職種または会社を検索...", "job_visa_filter": "ビザの種類",
+        "job_match": "マッチ", "job_apply": "応募", "job_upload_cv": "履歴書をアップロードして最適な求人を見つけよう",
+        "job_find": "🎯 マッチを探す",
+        "topik_schedule": "日程", "topik_register": "登録", "topik_levels": "レベル",
+        "topik_tips": "学習のヒント", "topik_centers": "試験会場",
+        "topik_fee": "受験料情報", "topik_reg_btn": "topik.go.krで登録 →",
+        "tc_search": "都市で検索...",
+        "visa_req": "要件", "visa_docs": "書類", "visa_proc": "処理期間",
+        "visa_for": "対象", "visa_fee": "手数料", "visa_dur": "滞在期間", "visa_apply": "HiKoreaで申請 →",
+        "life_housing": "住居", "life_transport": "交通", "life_health": "健康",
+        "life_banking": "銀行", "life_safety": "安全",
+        "auth_welcome": "ユニパスへようこそ", "auth_login_sub": "ログインして大学・求人を保存し通知を受け取る",
+        "auth_reg_sub": "無料アカウントを作成して旅をパーソナライズ",
+        "full_name": "氏名", "email": "メール", "password": "パスワード",
+        "confirm_pw": "パスワード確認", "lang_pref": "言語設定",
+        "notif_pref": "通知設定",
+        "notif_topik": "TOPIK日程アラート", "notif_visa": "ビザ政策更新",
+        "notif_job": "新規求人", "notif_uni": "大学ニュース", "notif_scholar": "奨学金のお知らせ",
+        "have_account": "アカウントをお持ちですか？ログイン", "no_account": "アカウントがない？作成する",
+        "pw_mismatch": "パスワードが一致しません。", "invalid_email": "有効なメールアドレスを入力してください。",
+        "reg_success": "🎉 アカウント作成完了！ようこそ。", "login_fail": "アカウントが見つかりません。先に登録してください。",
+        "login_success": "おかえりなさい！", "fill_all": "すべての項目を入力してください。",
+        "my_profile": "マイプロフィール", "saved_uni": "🎓 保存した大学", "saved_jobs": "💼 保存した求人",
+        "edit_notif": "通知設定を編集", "profile_saved": "設定を保存しました！",
+        "none_yet": "まだ何も保存されていません。",
+        "chat_title": "UNIアシスタント", "chat_sub": "韓国生活について何でも聞いてください",
+        "placeholder": "韓国について何でも聞いてください...", "ask_ai": "💬 AIアシスタントに質問",
+        "subscribe": "メール更新を受け取る", "email_label": "あなたのメール", "topics": "興味のあるトピック",
+        "sub_success": "✅ 登録完了！あなたの言語で更新をお届けします。",
+        "admin_panel": "⚙️ 管理パネル", "admin_pw": "管理者パスワード", "admin_ok": "✅ 認証済み",
+        "admin_pdf": "📄 PDFアップロード", "admin_stats": "📊 統計",
     },
     "🇨🇳 中文": {
-        "home": "首页", "university": "大学", "career": "职业", "job": "就业", "topik": "TOPIK", "visa": "签证",
-        "research": "大学搜索", "school": "学校信息", "apply": "申请入学", "admission": "入学指南",
-        "cv_check": "简历修改", "mock_interview": "AI模拟面试", "job_board": "招聘信息", "my_matches": "精准匹配",
-        "schedule": "考试日程", "register": "报名指南", "levels": "等级信息", "study_tips": "学习技巧",
-        "title": "在韩国开启\n您的精彩未来", "subtitle": "一站式AI平台，助力留学、就业与签证",
-        "visa_types": "签证类型", "universities": "合作大学", "topik_level": "TOPIK等级", "job_openings": "招聘职位",
-        "search": "🔍 搜索", "ask_ai": "咨询AI →", "upload": "上传", "submit": "提交", "next": "下一步 →", "back": "← 返回",
-        "contact": "联系方式", "graduation_req": "毕业要求", "documents": "所需材料", "intl_office": "国际交流处",
-        "upload_cv": "上传简历", "start_interview": "▶ 开始AI面试", "get_feedback": "获取评估反馈",
-        "filter_visa": "按签证类型筛选", "ai_summary": "AI智能摘要", "match_cv": "简历智能匹配",
-        "test_date": "考试日期", "registration": "报名时间", "results": "成绩查询", "fee": "报名费用",
-        "requirements": "申请要求", "process": "办理流程", "fees": "相关费用",
-        "subscribe": "订阅通知提醒", "topics": "选择订阅主题", "email_label": "电子邮箱",
-        "placeholder": "请输入您的问题...", "source_badge": "✓ 权威认证", "close": "✕ 关闭",
-        "upload_pdf": "上传PDF知识库", "vectorizing": "向量化处理中...", "stats": "数据统计", "password": "管理员密码",
-        "success": "✅ 操作成功！", "error": "发生错误", "warning": "注意", "info": "提示信息",
-        "plan_title": "规划您的留学之旅", "plan_1": "选择大学", "plan_2": "备考TOPIK",
-        "plan_3": "申请签证", "plan_4": "开启韩国生活",
-        "ai_counselor": "AI顾问", "new_badge": "新", "hot_badge": "热门", "uni_sub": "找到最适合您在韩国留学的大学", "career_sub": "用AI工具在韩国发展职业", "job_sub": "找到您理想的工作", "topik_sub": "TOPIK考试完全指南", "visa_sub": "外国留学生和工作者签证指南", "search_placeholder": "搜索大学名称...", "region": "地区", "gks_support": "GKS奖学金", "all": "全部", "register_title": "创建账号", "login_title": "登录", "name_label": "全名", "email_reg": "邮箱", "password_reg": "密码", "confirm_password": "确认密码", "register_btn": "注册", "login_btn": "登录", "already_have": "已有账号？", "no_account": "没有账号？", "logout_btn": "退出登录", "my_profile": "我的资料", "saved_unis": "收藏的大学", "saved_jobs": "收藏的职位", "notif_settings": "通知设置", "notif_topik": "TOPIK日程提醒", "notif_visa": "签证更新", "notif_jobs": "新职位提醒", "notif_news": "大学新闻", "notif_lang": "用母语接收提醒",
+        "app_name": "优途", "tagline": "您在韩国留学、就业、生活的AI向导",
+        "nav_home": "首页", "nav_university": "大学", "nav_career": "职业",
+        "nav_job": "求职", "nav_topik": "TOPIK", "nav_visa": "签证", "nav_life": "生活",
+        "login": "登录", "logout": "退出", "register": "注册",
+        "profile": "个人资料", "language": "语言", "search": "搜索", "apply": "申请",
+        "submit": "提交", "back": "返回", "save": "保存", "cancel": "取消",
+        "next": "下一步", "skip": "跳过", "download": "下载", "visit": "访问",
+        "loading": "加载中...", "error": "抱歉，出现了问题。请重试。",
+        "empty": "暂无数据，请稍后再来。",
+        "home_badge": "🌏 为国际学生打造的AI平台",
+        "home_title": "您赴韩留学的完整路径",
+        "home_subtitle": "大学、奖学金、TOPIK、签证、求职、生活——国际学生所需的一切，由AI以9种语言提供。",
+        "kpi_visa": "签证类型", "kpi_uni": "大学", "kpi_topik": "TOPIK等级", "kpi_jobs": "招聘职位",
+        "plan_title": "规划您的旅程", "plan_sub": "从申请到在韩生活的四个简单步骤",
+        "step1_t": "选择大学", "step1_d": "找到最适合的学校和专业",
+        "step2_t": "备考TOPIK", "step2_d": "达到所需的韩语水平",
+        "step3_t": "申请签证", "step3_d": "获得符合目标的签证",
+        "step4_t": "开启韩国生活", "step4_d": "住房、银行、医疗等",
+        "feat_uni_t": "大学搜索", "feat_uni_d": "380多所大学、专业、学费、奖学金一站搞定。",
+        "feat_job_t": "求职平台", "feat_job_d": "为国际人才AI匹配职位，签证友好的雇主。",
+        "feat_visa_t": "签证查询", "feat_visa_d": "借助AI了解D-2、D-4、E-7、F-2、F-5签证。",
+        "official_res": "官方资源", "official_sub": "可靠的政府和大学链接，尽在一处",
+        "res_study": "🎓 学习资源", "res_immig": "🛂 出入境指南", "res_tests": "📝 考试与就业",
+        "job_portals": "热门求职网站", "why_korea": "为何选韩国", "statistics": "数据统计", "resources": "资源",
+        "overview": "概览", "latest_news": "最新资讯",
+        "uni_research": "调研", "uni_school": "学校信息", "uni_apply": "申请",
+        "uni_admission": "招生", "uni_scholar": "奖学金",
+        "filter_keyword": "关键词", "filter_region": "地区", "filter_gks": "GKS资格",
+        "kw_ph": "搜索大学或专业...", "all": "全部", "yes": "是", "no": "否",
+        "loc_contact": "📍 位置与联系", "tuition_support": "💰 学费与资助",
+        "grad_req": "🎓 毕业要求", "avail_majors": "📚 开设专业",
+        "btn_website": "🌐 官方网站", "btn_apply": "📝 立即申请", "btn_intl": "🌏 国际处",
+        "career_cv": "简历检查", "career_interview": "模拟面试", "career_res": "资源",
+        "cv_title": "AI简历评估", "cv_sub": "上传简历，获取针对韩国就业市场的即时反馈",
+        "cv_upload": "上传简历 (PDF或DOCX)", "cv_target": "目标职位",
+        "cv_target_ph": "例如：软件工程师", "cv_analyze": "🔍 分析我的简历",
+        "cv_score": "综合评分", "cv_grammar": "语法", "cv_structure": "结构",
+        "cv_recs": "建议", "cv_culture": "韩国文化提示",
+        "iv_title": "🎤 AI模拟面试", "iv_sub": "用真实问题练习并获得AI反馈",
+        "iv_role": "职位", "iv_role_ph": "例如：软件工程师、市场经理",
+        "iv_info": "在上方输入职位即可开始模拟面试。",
+        "iv_start": "🚀 开始面试", "iv_answer": "您的回答", "iv_answer_ph": "输入您的回答 (至少10个字符)...",
+        "iv_min": "请至少输入10个字符。", "iv_feedback": "正在生成AI反馈...",
+        "iv_overall": "综合", "iv_confidence": "自信度", "iv_fit": "文化契合",
+        "iv_strengths": "优势", "iv_improve": "改进", "iv_again": "🔄 再试一次",
+        "job_board": "求职平台", "job_matches": "我的匹配", "job_portals_tab": "门户",
+        "job_search_ph": "搜索职位或公司...", "job_visa_filter": "签证类型",
+        "job_match": "匹配", "job_apply": "申请", "job_upload_cv": "上传简历，找到最匹配的工作",
+        "job_find": "🎯 查找我的匹配",
+        "topik_schedule": "日程", "topik_register": "报名", "topik_levels": "等级",
+        "topik_tips": "学习技巧", "topik_centers": "考点",
+        "topik_fee": "费用信息", "topik_reg_btn": "在topik.go.kr报名 →",
+        "tc_search": "按城市搜索...",
+        "visa_req": "要求", "visa_docs": "材料", "visa_proc": "办理时间",
+        "visa_for": "适用对象", "visa_fee": "费用", "visa_dur": "停留期限", "visa_apply": "在HiKorea申请 →",
+        "life_housing": "住房", "life_transport": "交通", "life_health": "医疗",
+        "life_banking": "银行", "life_safety": "安全",
+        "auth_welcome": "欢迎来到优途", "auth_login_sub": "登录以收藏大学、职位并接收提醒",
+        "auth_reg_sub": "创建免费账户，定制您的旅程",
+        "full_name": "姓名", "email": "邮箱", "password": "密码",
+        "confirm_pw": "确认密码", "lang_pref": "语言偏好",
+        "notif_pref": "通知偏好",
+        "notif_topik": "TOPIK日程提醒", "notif_visa": "签证政策更新",
+        "notif_job": "新职位发布", "notif_uni": "大学资讯", "notif_scholar": "奖学金公告",
+        "have_account": "已有账户？登录", "no_account": "没有账户？立即创建",
+        "pw_mismatch": "两次密码不一致。", "invalid_email": "请输入有效的邮箱地址。",
+        "reg_success": "🎉 账户已创建！欢迎加入。", "login_fail": "未找到账户，请先注册。",
+        "login_success": "欢迎回来！", "fill_all": "请填写所有字段。",
+        "my_profile": "我的资料", "saved_uni": "🎓 收藏的大学", "saved_jobs": "💼 收藏的职位",
+        "edit_notif": "编辑通知偏好", "profile_saved": "偏好已保存！",
+        "none_yet": "暂无收藏。",
+        "chat_title": "UNI助手", "chat_sub": "韩国生活相关问题随时问我",
+        "placeholder": "关于韩国，问我任何问题...", "ask_ai": "💬 询问AI助手",
+        "subscribe": "获取邮件更新", "email_label": "您的邮箱", "topics": "感兴趣的主题",
+        "sub_success": "✅ 订阅成功！我们将用您的语言发送更新。",
+        "admin_panel": "⚙️ 管理面板", "admin_pw": "管理员密码", "admin_ok": "✅ 已授权",
+        "admin_pdf": "📄 PDF上传", "admin_stats": "📊 统计",
     },
     "🇻🇳 Tiếng Việt": {
-        "home": "TRANG CHỦ", "university": "ĐẠI HỌC", "career": "SỰ NGHIỆP", "job": "VIỆC LÀM", "topik": "TOPIK", "visa": "VISA",
-        "research": "Tìm trường", "school": "Thông tin trường", "apply": "Nộp hồ sơ", "admission": "Hướng dẫn nhập học",
-        "cv_check": "Kiểm tra CV", "mock_interview": "Phỏng vấn thử AI", "job_board": "Bảng tuyển dụng", "my_matches": "Việc phù hợp",
-        "schedule": "Lịch thi", "register": "Hướng dẫn đăng ký", "levels": "Các cấp độ", "study_tips": "Mẹo học tập",
-        "title": "Tương lai tại Hàn Quốc\nBắt đầu từ đây", "subtitle": "Nền tảng AI toàn diện hỗ trợ du học, làm việc và visa tại Hàn Quốc.",
-        "visa_types": "Loại Visa", "universities": "Trường đại học", "topik_level": "Cấp độ TOPIK", "job_openings": "Tin tuyển dụng",
-        "search": "🔍 Tìm kiếm", "ask_ai": "Hỏi AI →", "upload": "Tải lên", "submit": "Gửi", "next": "Tiếp theo →", "back": "← Quay lại",
-        "contact": "Liên hệ", "graduation_req": "Yêu cầu tốt nghiệp", "documents": "Hồ sơ cần thiết", "intl_office": "Văn phòng quốc tế",
-        "upload_cv": "Tải CV lên", "start_interview": "▶ Bắt đầu phỏng vấn AI", "get_feedback": "Nhận phản hồi",
-        "filter_visa": "Lọc theo loại Visa", "ai_summary": "Tóm tắt bởi AI", "match_cv": "Khớp CV",
-        "test_date": "Ngày thi", "registration": "Thời gian đăng ký", "results": "Ngày có kết quả", "fee": "Lệ phí",
-        "requirements": "Yêu cầu", "process": "Quy trình", "fees": "Chi phí",
-        "subscribe": "Đăng ký nhận thông báo", "topics": "Chọn chủ đề", "email_label": "Địa chỉ Email",
-        "placeholder": "Hỏi tôi bất cứ điều gì về Hàn Quốc...", "source_badge": "✓ Nguồn xác thực", "close": "✕ Đóng",
-        "upload_pdf": "Tải PDF lên hệ thống", "vectorizing": "Đang xử lý...", "stats": "Thống kê", "password": "Mật khẩu Admin",
-        "success": "✅ Thành công!", "error": "Có lỗi xảy ra", "warning": "Cảnh báo", "info": "Thông tin",
-        "plan_title": "Lên kế hoạch du học", "plan_1": "Chọn trường", "plan_2": "Chuẩn bị TOPIK",
-        "plan_3": "Xin visa", "plan_4": "Bắt đầu cuộc sống mới",
-        "ai_counselor": "Tư vấn AI", "new_badge": "MỚI", "hot_badge": "HOT", "uni_sub": "Tìm trường đại học phù hợp tại Hàn Quốc", "career_sub": "Phát triển sự nghiệp tại Hàn với AI", "job_sub": "Tìm việc làm phù hợp với bạn", "topik_sub": "Hướng dẫn đầy đủ về kỳ thi TOPIK", "visa_sub": "Hướng dẫn visa cho du học sinh và người đi làm", "search_placeholder": "Tìm tên trường đại học...", "region": "Khu vực", "gks_support": "Học bổng GKS", "all": "Tất cả", "register_title": "Tạo tài khoản", "login_title": "Đăng nhập", "name_label": "Họ và tên", "email_reg": "Email", "password_reg": "Mật khẩu", "confirm_password": "Xác nhận mật khẩu", "register_btn": "Đăng ký", "login_btn": "Đăng nhập", "already_have": "Đã có tài khoản?", "no_account": "Chưa có tài khoản?", "logout_btn": "Đăng xuất", "my_profile": "Hồ sơ của tôi", "saved_unis": "Trường đã lưu", "saved_jobs": "Việc làm đã lưu", "notif_settings": "Cài đặt thông báo", "notif_topik": "Thông báo lịch TOPIK", "notif_visa": "Cập nhật visa", "notif_jobs": "Việc làm mới", "notif_news": "Tin tức trường học", "notif_lang": "Nhận thông báo bằng tiếng mẹ đẻ",
+        "app_name": "UniPath", "tagline": "Hướng dẫn AI để du học, làm việc & sinh sống tại Hàn Quốc",
+        "nav_home": "TRANG CHỦ", "nav_university": "ĐẠI HỌC", "nav_career": "SỰ NGHIỆP",
+        "nav_job": "VIỆC LÀM", "nav_topik": "TOPIK", "nav_visa": "VISA", "nav_life": "ĐỜI SỐNG",
+        "login": "Đăng nhập", "logout": "Đăng xuất", "register": "Đăng ký",
+        "profile": "Hồ sơ", "language": "Ngôn ngữ", "search": "Tìm kiếm", "apply": "Nộp đơn",
+        "submit": "Gửi", "back": "Quay lại", "save": "Lưu", "cancel": "Hủy",
+        "next": "Tiếp", "skip": "Bỏ qua", "download": "Tải xuống", "visit": "Truy cập",
+        "loading": "Đang tải...", "error": "Xin lỗi, đã xảy ra lỗi. Vui lòng thử lại.",
+        "empty": "Chưa có dữ liệu. Vui lòng quay lại sau.",
+        "home_badge": "🌏 Nền tảng AI cho sinh viên quốc tế",
+        "home_title": "Con đường hoàn chỉnh để du học Hàn Quốc",
+        "home_subtitle": "Đại học, học bổng, TOPIK, visa, việc làm và đời sống — mọi thứ sinh viên quốc tế cần, hỗ trợ bởi AI với 9 ngôn ngữ.",
+        "kpi_visa": "Loại visa", "kpi_uni": "Đại học", "kpi_topik": "Cấp độ TOPIK", "kpi_jobs": "Tin tuyển dụng",
+        "plan_title": "Lên kế hoạch hành trình", "plan_sub": "Bốn bước đơn giản từ nộp đơn đến cuộc sống mới tại Hàn",
+        "step1_t": "Chọn trường", "step1_d": "Tìm trường và ngành phù hợp nhất",
+        "step2_t": "Ôn TOPIK", "step2_d": "Đạt trình độ tiếng Hàn cần thiết",
+        "step3_t": "Xin visa", "step3_d": "Nhận visa phù hợp với mục tiêu",
+        "step4_t": "Bắt đầu sống tại Hàn", "step4_d": "Nhà ở, ngân hàng, y tế và hơn thế",
+        "feat_uni_t": "Tìm trường", "feat_uni_d": "Khám phá hơn 380 trường, ngành, học phí và học bổng ở một nơi.",
+        "feat_job_t": "Bảng việc làm", "feat_job_d": "Việc làm AI gợi ý cho nhân tài quốc tế, nhà tuyển dụng thân thiện visa.",
+        "feat_visa_t": "Kiểm tra visa", "feat_visa_d": "Hiểu visa D-2, D-4, E-7, F-2, F-5 với hướng dẫn AI.",
+        "official_res": "Nguồn chính thức", "official_sub": "Liên kết chính phủ và đại học đáng tin cậy ở một nơi",
+        "res_study": "🎓 Nguồn học tập", "res_immig": "🛂 Hướng dẫn nhập cư", "res_tests": "📝 Thi cử & Việc làm",
+        "job_portals": "Trang việc làm phổ biến", "why_korea": "Tại sao Hàn Quốc", "statistics": "Thống kê", "resources": "Tài nguyên",
+        "overview": "Tổng quan", "latest_news": "Tin mới nhất",
+        "uni_research": "Nghiên cứu", "uni_school": "Thông tin trường", "uni_apply": "Nộp đơn",
+        "uni_admission": "Tuyển sinh", "uni_scholar": "Học bổng",
+        "filter_keyword": "Từ khóa", "filter_region": "Khu vực", "filter_gks": "Đủ điều kiện GKS",
+        "kw_ph": "Tìm trường hoặc ngành...", "all": "Tất cả", "yes": "Có", "no": "Không",
+        "loc_contact": "📍 Vị trí & Liên hệ", "tuition_support": "💰 Học phí & Hỗ trợ",
+        "grad_req": "🎓 Yêu cầu tốt nghiệp", "avail_majors": "📚 Ngành đào tạo",
+        "btn_website": "🌐 Trang chính thức", "btn_apply": "📝 Nộp đơn ngay", "btn_intl": "🌏 Phòng quốc tế",
+        "career_cv": "Kiểm tra CV", "career_interview": "Phỏng vấn thử", "career_res": "Tài nguyên",
+        "cv_title": "AI đánh giá CV", "cv_sub": "Tải CV lên và nhận phản hồi tức thì cho thị trường việc làm Hàn Quốc",
+        "cv_upload": "Tải CV (PDF hoặc DOCX)", "cv_target": "Vị trí mong muốn",
+        "cv_target_ph": "ví dụ: Kỹ sư phần mềm", "cv_analyze": "🔍 Phân tích CV",
+        "cv_score": "Điểm tổng", "cv_grammar": "Ngữ pháp", "cv_structure": "Cấu trúc",
+        "cv_recs": "Khuyến nghị", "cv_culture": "Mẹo văn hóa Hàn",
+        "iv_title": "🎤 Phỏng vấn thử AI", "iv_sub": "Luyện tập với câu hỏi thực tế và nhận phản hồi AI",
+        "iv_role": "Vị trí", "iv_role_ph": "ví dụ: Kỹ sư phần mềm, Quản lý marketing",
+        "iv_info": "Nhập vị trí ở trên để bắt đầu phỏng vấn thử.",
+        "iv_start": "🚀 Bắt đầu phỏng vấn", "iv_answer": "Câu trả lời", "iv_answer_ph": "Nhập câu trả lời (ít nhất 10 ký tự)...",
+        "iv_min": "Vui lòng viết ít nhất 10 ký tự.", "iv_feedback": "Đang tạo phản hồi AI...",
+        "iv_overall": "Tổng thể", "iv_confidence": "Tự tin", "iv_fit": "Phù hợp văn hóa",
+        "iv_strengths": "Điểm mạnh", "iv_improve": "Cần cải thiện", "iv_again": "🔄 Thử lại",
+        "job_board": "Bảng việc làm", "job_matches": "Phù hợp với tôi", "job_portals_tab": "Cổng",
+        "job_search_ph": "Tìm vị trí hoặc công ty...", "job_visa_filter": "Loại visa",
+        "job_match": "PHÙ HỢP", "job_apply": "Nộp đơn", "job_upload_cv": "Tải CV để tìm việc phù hợp nhất",
+        "job_find": "🎯 Tìm việc phù hợp",
+        "topik_schedule": "Lịch thi", "topik_register": "Đăng ký", "topik_levels": "Cấp độ",
+        "topik_tips": "Mẹo học", "topik_centers": "Điểm thi",
+        "topik_fee": "Thông tin lệ phí", "topik_reg_btn": "Đăng ký tại topik.go.kr →",
+        "tc_search": "Tìm theo thành phố...",
+        "visa_req": "Yêu cầu", "visa_docs": "Giấy tờ", "visa_proc": "Thời gian xử lý",
+        "visa_for": "Dành cho", "visa_fee": "Lệ phí", "visa_dur": "Thời hạn", "visa_apply": "Nộp trên HiKorea →",
+        "life_housing": "Nhà ở", "life_transport": "Giao thông", "life_health": "Sức khỏe",
+        "life_banking": "Ngân hàng", "life_safety": "An toàn",
+        "auth_welcome": "Chào mừng đến UniPath", "auth_login_sub": "Đăng nhập để lưu trường, việc làm và nhận thông báo",
+        "auth_reg_sub": "Tạo tài khoản miễn phí và cá nhân hóa hành trình",
+        "full_name": "Họ tên", "email": "Email", "password": "Mật khẩu",
+        "confirm_pw": "Xác nhận mật khẩu", "lang_pref": "Ngôn ngữ ưa thích",
+        "notif_pref": "Tùy chọn thông báo",
+        "notif_topik": "Thông báo lịch TOPIK", "notif_visa": "Cập nhật chính sách visa",
+        "notif_job": "Việc làm mới", "notif_uni": "Tin tức đại học", "notif_scholar": "Thông báo học bổng",
+        "have_account": "Đã có tài khoản? Đăng nhập", "no_account": "Chưa có tài khoản? Tạo ngay",
+        "pw_mismatch": "Mật khẩu không khớp.", "invalid_email": "Vui lòng nhập email hợp lệ.",
+        "reg_success": "🎉 Đã tạo tài khoản! Chào mừng bạn.", "login_fail": "Không tìm thấy tài khoản. Vui lòng đăng ký trước.",
+        "login_success": "Chào mừng trở lại!", "fill_all": "Vui lòng điền tất cả các trường.",
+        "my_profile": "Hồ sơ của tôi", "saved_uni": "🎓 Trường đã lưu", "saved_jobs": "💼 Việc đã lưu",
+        "edit_notif": "Chỉnh sửa thông báo", "profile_saved": "Đã lưu tùy chọn!",
+        "none_yet": "Chưa lưu gì cả.",
+        "chat_title": "Trợ lý UNI", "chat_sub": "Hỏi tôi bất cứ điều gì về cuộc sống tại Hàn",
+        "placeholder": "Hỏi tôi bất cứ điều gì về Hàn Quốc...", "ask_ai": "💬 Hỏi trợ lý AI",
+        "subscribe": "Nhận cập nhật qua email", "email_label": "Email của bạn", "topics": "Chủ đề quan tâm",
+        "sub_success": "✅ Đã đăng ký! Bạn sẽ nhận cập nhật bằng ngôn ngữ của mình.",
+        "admin_panel": "⚙️ Bảng quản trị", "admin_pw": "Mật khẩu quản trị", "admin_ok": "✅ Đã xác thực",
+        "admin_pdf": "📄 Tải PDF", "admin_stats": "📊 Thống kê",
     },
     "🇹🇭 ภาษาไทย": {
-        "home": "หน้าหลัก", "university": "มหาวิทยาลัย", "career": "อาชีพ", "job": "หางาน", "topik": "TOPIK", "visa": "วีซ่า",
-        "research": "ค้นหามหาวิทยาลัย", "school": "ข้อมูลมหาวิทยาลัย", "apply": "สมัครเรียน", "admission": "คู่มือการรับสมัคร",
-        "cv_check": "ตรวจเรซูเม่", "mock_interview": "สัมภาษณ์ทดลอง AI", "job_board": "ประกาศรับสมัครงาน", "my_matches": "งานที่เหมาะกับคุณ",
-        "schedule": "กำหนดการสอบ", "register": "วิธีลงทะเบียน", "levels": "ระดับคะแนน", "study_tips": "เคล็ดลับการเรียน",
-        "title": "อนาคตในเกาหลี\nเริ่มต้นที่นี่", "subtitle": "แพลตฟอร์ม AI ครบวงจรสำหรับนักศึกษาต่างชาติในเกาหลี",
-        "visa_types": "ประเภทวีซ่า", "universities": "มหาวิทยาลัย", "topik_level": "ระดับ TOPIK", "job_openings": "ตำแหน่งงาน",
-        "search": "🔍 ค้นหา", "ask_ai": "ถาม AI →", "upload": "อัปโหลด", "submit": "ส่ง", "next": "ถัดไป →", "back": "← ย้อนกลับ",
-        "contact": "ติดต่อ", "graduation_req": "เกณฑ์จบการศึกษา", "documents": "เอกสารที่ต้องใช้", "intl_office": "กองวิเทศสัมพันธ์",
-        "upload_cv": "อัปโหลดเรซูเม่", "start_interview": "▶ เริ่มสัมภาษณ์ AI", "get_feedback": "รับผลการประเมิน",
-        "filter_visa": "กรองตามประเภทวีซ่า", "ai_summary": "สรุปโดย AI", "match_cv": "จับคู่เรซูเม่",
-        "test_date": "วันสอบ", "registration": "ช่วงเวลาลงทะเบียน", "results": "วันประกาศผล", "fee": "ค่าสมัคร",
-        "requirements": "คุณสมบัติ", "process": "ขั้นตอนการดำเนินการ", "fees": "ค่าธรรมเนียม",
-        "subscribe": "สมัครรับการแจ้งเตือน", "topics": "เลือกหัวข้อที่สนใจ", "email_label": "ที่อยู่อีเมล",
-        "placeholder": "ถามฉันได้เลยเกี่ยวกับเกาหลี...", "source_badge": "✓ ข้อมูลที่ตรวจสอบแล้ว", "close": "✕ ปิด",
-        "upload_pdf": "อัปโหลดเอกสาร PDF", "vectorizing": "กำลังประมวลผล...", "stats": "สถิติการใช้งาน", "password": "รหัสผ่านผู้ดูแล",
-        "success": "✅ สำเร็จแล้ว!", "error": "เกิดข้อผิดพลาด", "warning": "คำเตือน", "info": "ข้อมูล",
-        "plan_title": "วางแผนการเรียนของคุณ", "plan_1": "เลือกมหาวิทยาลัย", "plan_2": "เตรียม TOPIK",
-        "plan_3": "ยื่นขอวีซ่า", "plan_4": "เริ่มชีวิตในเกาหลี",
-        "ai_counselor": "ที่ปรึกษา AI", "new_badge": "ใหม่", "hot_badge": "ยอดนิยม", "uni_sub": "ค้นหามหาวิทยาลัยที่เหมาะสมในเกาหลี", "career_sub": "พัฒนาอาชีพในเกาหลีด้วย AI", "job_sub": "ค้นหางานที่เหมาะกับคุณ", "topik_sub": "คู่มือสอบ TOPIK ฉบับสมบูรณ์", "visa_sub": "คู่มือวีซ่าสำหรับนักศึกษาและผู้ทำงาน", "search_placeholder": "ค้นหาชื่อมหาวิทยาลัย...", "region": "ภูมิภาค", "gks_support": "ทุน GKS", "all": "ทั้งหมด", "register_title": "สร้างบัญชี", "login_title": "เข้าสู่ระบบ", "name_label": "ชื่อ-นามสกุล", "email_reg": "อีเมล", "password_reg": "รหัสผ่าน", "confirm_password": "ยืนยันรหัสผ่าน", "register_btn": "ลงทะเบียน", "login_btn": "เข้าสู่ระบบ", "already_have": "มีบัญชีอยู่แล้ว?", "no_account": "ยังไม่มีบัญชี?", "logout_btn": "ออกจากระบบ", "my_profile": "โปรไฟล์ของฉัน", "saved_unis": "มหาวิทยาลัยที่บันทึก", "saved_jobs": "งานที่บันทึก", "notif_settings": "ตั้งค่าการแจ้งเตือน", "notif_topik": "แจ้งเตือนกำหนดการ TOPIK", "notif_visa": "อัปเดตวีซ่า", "notif_jobs": "งานใหม่", "notif_news": "ข่าวมหาวิทยาลัย", "notif_lang": "รับการแจ้งเตือนเป็นภาษาแม่",
+        "app_name": "UniPath", "tagline": "ไกด์ AI สำหรับเรียน ทำงาน และใช้ชีวิตในเกาหลี",
+        "nav_home": "หน้าแรก", "nav_university": "มหาวิทยาลัย", "nav_career": "อาชีพ",
+        "nav_job": "งาน", "nav_topik": "TOPIK", "nav_visa": "วีซ่า", "nav_life": "ชีวิต",
+        "login": "เข้าสู่ระบบ", "logout": "ออกจากระบบ", "register": "สมัครสมาชิก",
+        "profile": "โปรไฟล์", "language": "ภาษา", "search": "ค้นหา", "apply": "สมัคร",
+        "submit": "ส่ง", "back": "กลับ", "save": "บันทึก", "cancel": "ยกเลิก",
+        "next": "ถัดไป", "skip": "ข้าม", "download": "ดาวน์โหลด", "visit": "เยี่ยมชม",
+        "loading": "กำลังโหลด...", "error": "ขออภัย เกิดข้อผิดพลาด กรุณาลองใหม่",
+        "empty": "ยังไม่มีข้อมูล โปรดกลับมาใหม่ภายหลัง",
+        "home_badge": "🌏 แพลตฟอร์ม AI สำหรับนักศึกษาต่างชาติ",
+        "home_title": "เส้นทางสมบูรณ์สู่การเรียนต่อเกาหลี",
+        "home_subtitle": "มหาวิทยาลัย ทุน TOPIK วีซ่า งาน และการใช้ชีวิต — ทุกอย่างที่นักศึกษาต่างชาติต้องการ ขับเคลื่อนด้วย AI ใน 9 ภาษา",
+        "kpi_visa": "ประเภทวีซ่า", "kpi_uni": "มหาวิทยาลัย", "kpi_topik": "ระดับ TOPIK", "kpi_jobs": "ตำแหน่งงาน",
+        "plan_title": "วางแผนการเดินทางของคุณ", "plan_sub": "สี่ขั้นตอนง่ายๆ ตั้งแต่สมัครจนถึงใช้ชีวิตในเกาหลี",
+        "step1_t": "เลือกมหาวิทยาลัย", "step1_d": "หาโรงเรียนและสาขาที่เหมาะกับคุณ",
+        "step2_t": "เตรียม TOPIK", "step2_d": "ไปให้ถึงระดับภาษาเกาหลีที่ต้องการ",
+        "step3_t": "ขอวีซ่า", "step3_d": "รับวีซ่าที่ตรงกับเป้าหมาย",
+        "step4_t": "เริ่มชีวิตในเกาหลี", "step4_d": "ที่พัก ธนาคาร สุขภาพ และอื่นๆ",
+        "feat_uni_t": "ค้นหามหาวิทยาลัย", "feat_uni_d": "สำรวจมหาวิทยาลัยกว่า 380 แห่ง สาขา ค่าเล่าเรียน และทุนในที่เดียว",
+        "feat_job_t": "บอร์ดงาน", "feat_job_d": "งานจับคู่ด้วย AI สำหรับผู้มีความสามารถต่างชาติ นายจ้างที่เป็นมิตรกับวีซ่า",
+        "feat_visa_t": "ตรวจสอบวีซ่า", "feat_visa_d": "เข้าใจวีซ่า D-2, D-4, E-7, F-2, F-5 ด้วยคำแนะนำจาก AI",
+        "official_res": "แหล่งข้อมูลทางการ", "official_sub": "ลิงก์รัฐบาลและมหาวิทยาลัยที่เชื่อถือได้ในที่เดียว",
+        "res_study": "🎓 แหล่งข้อมูลการเรียน", "res_immig": "🛂 คู่มือตรวจคนเข้าเมือง", "res_tests": "📝 สอบ & งาน",
+        "job_portals": "เว็บหางานยอดนิยม", "why_korea": "ทำไมต้องเกาหลี", "statistics": "สถิติ", "resources": "ทรัพยากร",
+        "overview": "ภาพรวม", "latest_news": "ข่าวล่าสุด",
+        "uni_research": "ค้นคว้า", "uni_school": "ข้อมูลโรงเรียน", "uni_apply": "สมัคร",
+        "uni_admission": "การรับเข้า", "uni_scholar": "ทุนการศึกษา",
+        "filter_keyword": "คำค้น", "filter_region": "ภูมิภาค", "filter_gks": "มีสิทธิ์ GKS",
+        "kw_ph": "ค้นหามหาวิทยาลัยหรือสาขา...", "all": "ทั้งหมด", "yes": "ใช่", "no": "ไม่",
+        "loc_contact": "📍 ที่ตั้ง & ติดต่อ", "tuition_support": "💰 ค่าเล่าเรียน & การสนับสนุน",
+        "grad_req": "🎓 เงื่อนไขการจบ", "avail_majors": "📚 สาขาที่เปิดสอน",
+        "btn_website": "🌐 เว็บไซต์ทางการ", "btn_apply": "📝 สมัครเลย", "btn_intl": "🌏 สำนักงานนานาชาติ",
+        "career_cv": "ตรวจ CV", "career_interview": "สัมภาษณ์จำลอง", "career_res": "ทรัพยากร",
+        "cv_title": "AI ตรวจ CV", "cv_sub": "อัปโหลดเรซูเม่และรับฟีดแบ็กทันทีสำหรับตลาดงานเกาหลี",
+        "cv_upload": "อัปโหลด CV (PDF หรือ DOCX)", "cv_target": "ตำแหน่งเป้าหมาย",
+        "cv_target_ph": "เช่น วิศวกรซอฟต์แวร์", "cv_analyze": "🔍 วิเคราะห์ CV",
+        "cv_score": "คะแนนรวม", "cv_grammar": "ไวยากรณ์", "cv_structure": "โครงสร้าง",
+        "cv_recs": "คำแนะนำ", "cv_culture": "เคล็ดลับวัฒนธรรมเกาหลี",
+        "iv_title": "🎤 สัมภาษณ์จำลอง AI", "iv_sub": "ฝึกกับคำถามจริงและรับฟีดแบ็กจาก AI",
+        "iv_role": "ตำแหน่งงาน", "iv_role_ph": "เช่น วิศวกรซอฟต์แวร์ ผู้จัดการการตลาด",
+        "iv_info": "กรอกตำแหน่งงานด้านบนเพื่อเริ่มสัมภาษณ์จำลอง",
+        "iv_start": "🚀 เริ่มสัมภาษณ์", "iv_answer": "คำตอบของคุณ", "iv_answer_ph": "พิมพ์คำตอบ (อย่างน้อย 10 ตัวอักษร)...",
+        "iv_min": "กรุณาเขียนอย่างน้อย 10 ตัวอักษร", "iv_feedback": "กำลังสร้างฟีดแบ็ก AI...",
+        "iv_overall": "รวม", "iv_confidence": "ความมั่นใจ", "iv_fit": "ความเข้ากับวัฒนธรรม",
+        "iv_strengths": "จุดแข็ง", "iv_improve": "จุดที่ควรปรับปรุง", "iv_again": "🔄 ลองอีกครั้ง",
+        "job_board": "บอร์ดงาน", "job_matches": "งานที่ตรงกับฉัน", "job_portals_tab": "พอร์ทัล",
+        "job_search_ph": "ค้นหาตำแหน่งหรือบริษัท...", "job_visa_filter": "ประเภทวีซ่า",
+        "job_match": "ตรงกัน", "job_apply": "สมัคร", "job_upload_cv": "อัปโหลด CV เพื่อหางานที่ตรงที่สุด",
+        "job_find": "🎯 หางานที่ตรงกัน",
+        "topik_schedule": "กำหนดการ", "topik_register": "ลงทะเบียน", "topik_levels": "ระดับ",
+        "topik_tips": "เคล็ดลับการเรียน", "topik_centers": "ศูนย์สอบ",
+        "topik_fee": "ข้อมูลค่าธรรมเนียม", "topik_reg_btn": "ลงทะเบียนที่ topik.go.kr →",
+        "tc_search": "ค้นหาตามเมือง...",
+        "visa_req": "เงื่อนไข", "visa_docs": "เอกสาร", "visa_proc": "ระยะเวลาดำเนินการ",
+        "visa_for": "สำหรับ", "visa_fee": "ค่าธรรมเนียม", "visa_dur": "ระยะเวลา", "visa_apply": "สมัครที่ HiKorea →",
+        "life_housing": "ที่พัก", "life_transport": "การเดินทาง", "life_health": "สุขภาพ",
+        "life_banking": "ธนาคาร", "life_safety": "ความปลอดภัย",
+        "auth_welcome": "ยินดีต้อนรับสู่ UniPath", "auth_login_sub": "เข้าสู่ระบบเพื่อบันทึกมหาวิทยาลัย งาน และรับการแจ้งเตือน",
+        "auth_reg_sub": "สร้างบัญชีฟรีและปรับแต่งการเดินทางของคุณ",
+        "full_name": "ชื่อเต็ม", "email": "อีเมล", "password": "รหัสผ่าน",
+        "confirm_pw": "ยืนยันรหัสผ่าน", "lang_pref": "ภาษาที่ต้องการ",
+        "notif_pref": "การตั้งค่าแจ้งเตือน",
+        "notif_topik": "แจ้งเตือนกำหนดการ TOPIK", "notif_visa": "อัปเดตนโยบายวีซ่า",
+        "notif_job": "งานใหม่", "notif_uni": "ข่าวมหาวิทยาลัย", "notif_scholar": "ประกาศทุน",
+        "have_account": "มีบัญชีอยู่แล้ว? เข้าสู่ระบบ", "no_account": "ยังไม่มีบัญชี? สร้างเลย",
+        "pw_mismatch": "รหัสผ่านไม่ตรงกัน", "invalid_email": "กรุณากรอกอีเมลที่ถูกต้อง",
+        "reg_success": "🎉 สร้างบัญชีแล้ว! ยินดีต้อนรับ", "login_fail": "ไม่พบบัญชี กรุณาสมัครก่อน",
+        "login_success": "ยินดีต้อนรับกลับมา!", "fill_all": "กรุณากรอกทุกช่อง",
+        "my_profile": "โปรไฟล์ของฉัน", "saved_uni": "🎓 มหาวิทยาลัยที่บันทึก", "saved_jobs": "💼 งานที่บันทึก",
+        "edit_notif": "แก้ไขการแจ้งเตือน", "profile_saved": "บันทึกการตั้งค่าแล้ว!",
+        "none_yet": "ยังไม่มีการบันทึก",
+        "chat_title": "ผู้ช่วย UNI", "chat_sub": "ถามฉันได้ทุกเรื่องเกี่ยวกับชีวิตในเกาหลี",
+        "placeholder": "ถามฉันได้ทุกเรื่องเกี่ยวกับเกาหลี...", "ask_ai": "💬 ถามผู้ช่วย AI",
+        "subscribe": "รับอัปเดตทางอีเมล", "email_label": "อีเมลของคุณ", "topics": "หัวข้อที่สนใจ",
+        "sub_success": "✅ สมัครแล้ว! คุณจะได้รับอัปเดตในภาษาของคุณ",
+        "admin_panel": "⚙️ แผงผู้ดูแล", "admin_pw": "รหัสผ่านผู้ดูแล", "admin_ok": "✅ ได้รับอนุญาต",
+        "admin_pdf": "📄 อัปโหลด PDF", "admin_stats": "📊 สถิติ",
     },
     "🇲🇾 Bahasa Melayu": {
-        "home": "UTAMA", "university": "UNIVERSITI", "career": "KERJAYA", "job": "PEKERJAAN", "topik": "TOPIK", "visa": "VISA",
-        "research": "Cari Universiti", "school": "Maklumat Sekolah", "apply": "Mohon Masuk", "admission": "Panduan Kemasukan",
-        "cv_check": "Semak CV", "mock_interview": "Temu duga Latihan AI", "job_board": "Papan Kerja", "my_matches": "Padanan Terbaik",
-        "schedule": "Jadual Peperiksaan", "register": "Cara Mendaftar", "levels": "Tahap Gred", "study_tips": "Tips Belajar",
-        "title": "Masa Depan Anda di Korea\nBermula Di Sini", "subtitle": "Platform AI bersepadu untuk pelajar antarabangsa di Korea Selatan.",
-        "visa_types": "Jenis Visa", "universities": "Universiti", "topik_level": "Tahap TOPIK", "job_openings": "Peluang Kerja",
-        "search": "🔍 Cari", "ask_ai": "Tanya AI →", "upload": "Muat Naik", "submit": "Hantar", "next": "Seterusnya →", "back": "← Kembali",
-        "contact": "Hubungi Kami", "graduation_req": "Syarat Graduasi", "documents": "Dokumen Diperlukan", "intl_office": "Pejabat Antarabangsa",
-        "upload_cv": "Muat Naik CV Anda", "start_interview": "▶ Mulakan Temu duga AI", "get_feedback": "Terima Maklum Balas",
-        "filter_visa": "Tapis mengikut Visa", "ai_summary": "Ringkasan AI", "match_cv": "Padanan CV",
-        "test_date": "Tarikh Peperiksaan", "registration": "Tempoh Pendaftaran", "results": "Tarikh Keputusan", "fee": "Yuran",
-        "requirements": "Syarat-syarat", "process": "Proses Permohonan", "fees": "Caj & Bayaran",
-        "subscribe": "Langgan Pemberitahuan", "topics": "Pilih Topik", "email_label": "Alamat E-mel",
-        "placeholder": "Tanya saya apa-apa tentang Korea...", "source_badge": "✓ Sumber Disahkan", "close": "✕ Tutup",
-        "upload_pdf": "Muat Naik PDF Pengetahuan", "vectorizing": "Sedang Memproses...", "stats": "Statistik Platform", "password": "Kata Laluan Admin",
-        "success": "✅ Berjaya!", "error": "Ralat berlaku", "warning": "Amaran", "info": "Maklumat",
-        "plan_title": "Rancang Perjalanan Anda", "plan_1": "Pilih Universiti", "plan_2": "Sediakan TOPIK",
-        "plan_3": "Mohon Visa", "plan_4": "Mula Kehidupan di Korea",
-        "ai_counselor": "Kaunselor AI", "new_badge": "BARU", "hot_badge": "POPULAR", "uni_sub": "Cari universiti yang sesuai di Korea", "career_sub": "Bina kerjaya di Korea dengan AI", "job_sub": "Cari pekerjaan yang sesuai untuk anda", "topik_sub": "Panduan lengkap peperiksaan TOPIK", "visa_sub": "Panduan visa untuk pelajar dan pekerja asing", "search_placeholder": "Cari nama universiti...", "region": "Wilayah", "gks_support": "Biasiswa GKS", "all": "Semua", "register_title": "Buat Akaun", "login_title": "Log Masuk", "name_label": "Nama Penuh", "email_reg": "E-mel", "password_reg": "Kata Laluan", "confirm_password": "Sahkan Kata Laluan", "register_btn": "Daftar", "login_btn": "Log Masuk", "already_have": "Sudah ada akaun?", "no_account": "Belum ada akaun?", "logout_btn": "Log Keluar", "my_profile": "Profil Saya", "saved_unis": "Universiti Disimpan", "saved_jobs": "Kerja Disimpan", "notif_settings": "Tetapan Pemberitahuan", "notif_topik": "Amaran Jadual TOPIK", "notif_visa": "Kemas Kini Visa", "notif_jobs": "Kerja Baru", "notif_news": "Berita Universiti", "notif_lang": "Terima amaran dalam bahasa ibunda",
+        "app_name": "UniPath", "tagline": "Panduan AI untuk belajar, bekerja & tinggal di Korea",
+        "nav_home": "UTAMA", "nav_university": "UNIVERSITI", "nav_career": "KERJAYA",
+        "nav_job": "KERJA", "nav_topik": "TOPIK", "nav_visa": "VISA", "nav_life": "KEHIDUPAN",
+        "login": "Log Masuk", "logout": "Log Keluar", "register": "Daftar",
+        "profile": "Profil", "language": "Bahasa", "search": "Cari", "apply": "Mohon",
+        "submit": "Hantar", "back": "Kembali", "save": "Simpan", "cancel": "Batal",
+        "next": "Seterusnya", "skip": "Langkau", "download": "Muat turun", "visit": "Lawati",
+        "loading": "Memuatkan...", "error": "Maaf, berlaku ralat. Sila cuba lagi.",
+        "empty": "Tiada data lagi. Sila semak semula nanti.",
+        "home_badge": "🌏 Platform berkuasa AI untuk pelajar antarabangsa",
+        "home_title": "Laluan lengkap anda untuk belajar di Korea Selatan",
+        "home_subtitle": "Universiti, biasiswa, TOPIK, visa, kerja dan kehidupan harian — semua yang diperlukan pelajar antarabangsa, dikuasakan AI dalam 9 bahasa.",
+        "kpi_visa": "Jenis Visa", "kpi_uni": "Universiti", "kpi_topik": "Tahap TOPIK", "kpi_jobs": "Jawatan Kosong",
+        "plan_title": "Rancang Perjalanan Anda", "plan_sub": "Empat langkah mudah dari permohonan ke kehidupan di Korea",
+        "step1_t": "Pilih Universiti", "step1_d": "Cari sekolah dan jurusan terbaik",
+        "step2_t": "Sedia TOPIK", "step2_d": "Capai tahap bahasa Korea yang diperlukan",
+        "step3_t": "Mohon Visa", "step3_d": "Dapatkan visa yang sesuai dengan matlamat",
+        "step4_t": "Mula Hidup di Korea", "step4_d": "Penginapan, perbankan, kesihatan & lagi",
+        "feat_uni_t": "Carian Universiti", "feat_uni_d": "Terokai 380+ universiti, jurusan, yuran dan biasiswa di satu tempat.",
+        "feat_job_t": "Papan Kerja", "feat_job_d": "Kerja dipadankan AI untuk bakat antarabangsa, majikan mesra visa.",
+        "feat_visa_t": "Penyemak Visa", "feat_visa_d": "Fahami visa D-2, D-4, E-7, F-2, F-5 dengan panduan AI.",
+        "official_res": "Sumber Rasmi", "official_sub": "Pautan kerajaan dan universiti dipercayai di satu tempat",
+        "res_study": "🎓 Sumber Pengajian", "res_immig": "🛂 Panduan Imigresen", "res_tests": "📝 Peperiksaan & Pekerjaan",
+        "job_portals": "Portal Kerja Popular", "why_korea": "Mengapa Korea", "statistics": "Statistik", "resources": "Sumber",
+        "overview": "Gambaran Keseluruhan", "latest_news": "Berita Terkini",
+        "uni_research": "Penyelidikan", "uni_school": "Maklumat Sekolah", "uni_apply": "Mohon",
+        "uni_admission": "Kemasukan", "uni_scholar": "Biasiswa",
+        "filter_keyword": "Kata kunci", "filter_region": "Wilayah", "filter_gks": "Layak GKS",
+        "kw_ph": "Cari universiti atau jurusan...", "all": "Semua", "yes": "Ya", "no": "Tidak",
+        "loc_contact": "📍 Lokasi & Hubungi", "tuition_support": "💰 Yuran & Sokongan",
+        "grad_req": "🎓 Syarat Tamat Pengajian", "avail_majors": "📚 Jurusan Tersedia",
+        "btn_website": "🌐 Laman Rasmi", "btn_apply": "📝 Mohon Sekarang", "btn_intl": "🌏 Pejabat Antarabangsa",
+        "career_cv": "Semak CV", "career_interview": "Temu Duga Olok", "career_res": "Sumber",
+        "cv_title": "Semakan CV AI", "cv_sub": "Muat naik resume dan dapatkan maklum balas segera untuk pasaran kerja Korea",
+        "cv_upload": "Muat naik CV (PDF atau DOCX)", "cv_target": "Jawatan disasarkan",
+        "cv_target_ph": "cth: Jurutera Perisian", "cv_analyze": "🔍 Analisis CV",
+        "cv_score": "Skor Keseluruhan", "cv_grammar": "Tatabahasa", "cv_structure": "Struktur",
+        "cv_recs": "Cadangan", "cv_culture": "Tip Budaya Korea",
+        "iv_title": "🎤 Temu Duga Olok AI", "iv_sub": "Berlatih dengan soalan realistik dan dapatkan maklum balas AI",
+        "iv_role": "Jawatan", "iv_role_ph": "cth: Jurutera Perisian, Pengurus Pemasaran",
+        "iv_info": "Masukkan jawatan di atas untuk mula temu duga olok.",
+        "iv_start": "🚀 Mula Temu Duga", "iv_answer": "Jawapan anda", "iv_answer_ph": "Taip jawapan (sekurang-kurangnya 10 aksara)...",
+        "iv_min": "Sila tulis sekurang-kurangnya 10 aksara.", "iv_feedback": "Menjana maklum balas AI...",
+        "iv_overall": "Keseluruhan", "iv_confidence": "Keyakinan", "iv_fit": "Kesesuaian Budaya",
+        "iv_strengths": "Kekuatan", "iv_improve": "Penambahbaikan", "iv_again": "🔄 Cuba Lagi",
+        "job_board": "Papan Kerja", "job_matches": "Padanan Saya", "job_portals_tab": "Portal",
+        "job_search_ph": "Cari jawatan atau syarikat...", "job_visa_filter": "Jenis Visa",
+        "job_match": "PADANAN", "job_apply": "Mohon", "job_upload_cv": "Muat naik CV untuk cari kerja paling sesuai",
+        "job_find": "🎯 Cari Padanan Saya",
+        "topik_schedule": "Jadual", "topik_register": "Daftar", "topik_levels": "Tahap",
+        "topik_tips": "Tip Belajar", "topik_centers": "Pusat Peperiksaan",
+        "topik_fee": "Maklumat Yuran", "topik_reg_btn": "Daftar di topik.go.kr →",
+        "tc_search": "Cari mengikut bandar...",
+        "visa_req": "Syarat", "visa_docs": "Dokumen", "visa_proc": "Masa Pemprosesan",
+        "visa_for": "Untuk", "visa_fee": "Yuran", "visa_dur": "Tempoh", "visa_apply": "Mohon di HiKorea →",
+        "life_housing": "Penginapan", "life_transport": "Pengangkutan", "life_health": "Kesihatan",
+        "life_banking": "Perbankan", "life_safety": "Keselamatan",
+        "auth_welcome": "Selamat datang ke UniPath", "auth_login_sub": "Log masuk untuk simpan universiti, kerja dan terima makluman",
+        "auth_reg_sub": "Cipta akaun percuma dan peribadikan perjalanan anda",
+        "full_name": "Nama penuh", "email": "E-mel", "password": "Kata laluan",
+        "confirm_pw": "Sahkan kata laluan", "lang_pref": "Pilihan bahasa",
+        "notif_pref": "Tetapan pemberitahuan",
+        "notif_topik": "Makluman jadual TOPIK", "notif_visa": "Kemas kini dasar visa",
+        "notif_job": "Jawatan baharu", "notif_uni": "Berita universiti", "notif_scholar": "Pengumuman biasiswa",
+        "have_account": "Sudah ada akaun? Log Masuk", "no_account": "Tiada akaun? Cipta satu",
+        "pw_mismatch": "Kata laluan tidak sepadan.", "invalid_email": "Sila masukkan e-mel yang sah.",
+        "reg_success": "🎉 Akaun dicipta! Selamat datang.", "login_fail": "Akaun tidak ditemui. Sila daftar dahulu.",
+        "login_success": "Selamat kembali!", "fill_all": "Sila isi semua medan.",
+        "my_profile": "Profil Saya", "saved_uni": "🎓 Universiti Disimpan", "saved_jobs": "💼 Kerja Disimpan",
+        "edit_notif": "Edit pemberitahuan", "profile_saved": "Tetapan disimpan!",
+        "none_yet": "Tiada apa-apa disimpan lagi.",
+        "chat_title": "Pembantu UNI", "chat_sub": "Tanya saya apa sahaja tentang kehidupan di Korea",
+        "placeholder": "Tanya saya apa sahaja tentang Korea...", "ask_ai": "💬 Tanya Pembantu AI",
+        "subscribe": "Dapatkan Kemas Kini E-mel", "email_label": "E-mel anda", "topics": "Topik diminati",
+        "sub_success": "✅ Dilanggan! Anda akan terima kemas kini dalam bahasa anda.",
+        "admin_panel": "⚙️ Panel Admin", "admin_pw": "Kata Laluan Admin", "admin_ok": "✅ Dibenarkan",
+        "admin_pdf": "📄 Muat Naik PDF", "admin_stats": "📊 Statistik",
     },
     "🇷🇺 Русский": {
-        "home": "ГЛАВНАЯ", "university": "УНИВЕРСИТЕТ", "career": "КАРЬЕРА", "job": "РАБОТА", "topik": "TOPIK", "visa": "ВИЗА",
-        "research": "Поиск вузов", "school": "О вузах", "apply": "Подать заявку", "admission": "Гид поступления",
-        "cv_check": "Проверка резюме", "mock_interview": "AI Собеседование", "job_board": "Вакансии", "my_matches": "Мои подборки",
-        "schedule": "Расписание тестов", "register": "Инструкция записи", "levels": "Уровни TOPIK", "study_tips": "Советы",
-        "title": "Ваше будущее в Корее\nначинается здесь", "subtitle": "Единая AI-платформа для иностранных студентов в Южной Корее.",
-        "visa_types": "Типы виз", "universities": "Университеты", "topik_level": "Уровни TOPIK", "job_openings": "Вакансии",
-        "search": "🔍 Поиск", "ask_ai": "Спросить AI →", "upload": "Загрузить", "submit": "Отправить", "next": "Далее →", "back": "← Назад",
-        "contact": "Контакты", "graduation_req": "Требования к диплому", "documents": "Необходимые документы", "intl_office": "Международный отдел",
-        "upload_cv": "Загрузить резюме", "start_interview": "▶ Начать AI собеседование", "get_feedback": "Получить обратную связь",
-        "filter_visa": "Фильтр по типу визы", "ai_summary": "Резюме от AI", "match_cv": "Подбор по резюме",
-        "test_date": "Дата теста", "registration": "Период регистрации", "results": "Дата результатов", "fee": "Стоимость",
-        "requirements": "Требования", "process": "Процесс подачи", "fees": "Сборы и платежи",
-        "subscribe": "Подписаться на уведомления", "topics": "Выбрать темы", "email_label": "Ваш Email",
-        "placeholder": "Спросите что угодно о Корее...", "source_badge": "✓ Проверенный источник", "close": "✕ Закрыть",
-        "upload_pdf": "Загрузить PDF документы", "vectorizing": "Обработка данных...", "stats": "Статистика платформы", "password": "Пароль администратора",
-        "success": "✅ Успешно!", "error": "Ошибка", "warning": "Предупреждение", "info": "Информация",
-        "plan_title": "Спланируйте путь в Корею", "plan_1": "Выбрать университет", "plan_2": "Подготовить TOPIK",
-        "plan_3": "Оформить визу", "plan_4": "Начать жизнь в Корее",
-        "ai_counselor": "AI Консультант", "new_badge": "НОВОЕ", "hot_badge": "ТОП", "uni_sub": "Найдите подходящий университет в Корее", "career_sub": "Стройте карьеру в Корее с помощью AI", "job_sub": "Найдите работу своей мечты в Корее", "topik_sub": "Полное руководство по экзамену TOPIK", "visa_sub": "Руководство по визам для иностранных студентов", "search_placeholder": "Поиск по названию университета...", "region": "Регион", "gks_support": "Стипендия GKS", "all": "Все", "register_title": "Создать аккаунт", "login_title": "Войти", "name_label": "Полное имя", "email_reg": "Email", "password_reg": "Пароль", "confirm_password": "Подтвердите пароль", "register_btn": "Зарегистрироваться", "login_btn": "Войти", "already_have": "Уже есть аккаунт?", "no_account": "Нет аккаунта?", "logout_btn": "Выйти", "my_profile": "Мой профиль", "saved_unis": "Сохранённые вузы", "saved_jobs": "Сохранённые вакансии", "notif_settings": "Настройки уведомлений", "notif_topik": "Оповещения о расписании TOPIK", "notif_visa": "Обновления визы", "notif_jobs": "Новые вакансии", "notif_news": "Новости университетов", "notif_lang": "Получать уведомления на родном языке",
+        "app_name": "UniPath", "tagline": "AI-гид по учёбе, работе и жизни в Корее",
+        "nav_home": "ГЛАВНАЯ", "nav_university": "УНИВЕРСИТЕТ", "nav_career": "КАРЬЕРА",
+        "nav_job": "РАБОТА", "nav_topik": "TOPIK", "nav_visa": "ВИЗА", "nav_life": "ЖИЗНЬ",
+        "login": "Войти", "logout": "Выйти", "register": "Регистрация",
+        "profile": "Профиль", "language": "Язык", "search": "Поиск", "apply": "Подать заявку",
+        "submit": "Отправить", "back": "Назад", "save": "Сохранить", "cancel": "Отмена",
+        "next": "Далее", "skip": "Пропустить", "download": "Скачать", "visit": "Перейти",
+        "loading": "Загрузка...", "error": "Извините, произошла ошибка. Попробуйте снова.",
+        "empty": "Данных пока нет. Загляните позже.",
+        "home_badge": "🌏 AI-платформа для иностранных студентов",
+        "home_title": "Ваш полный путь к учёбе в Южной Корее",
+        "home_subtitle": "Университеты, стипендии, TOPIK, визы, работа и быт — всё, что нужно иностранному студенту, на базе AI и на 9 языках.",
+        "kpi_visa": "Типы виз", "kpi_uni": "Университеты", "kpi_topik": "Уровень TOPIK", "kpi_jobs": "Вакансии",
+        "plan_title": "Спланируйте свой путь", "plan_sub": "Четыре простых шага от подачи заявки до жизни в Корее",
+        "step1_t": "Выбрать университет", "step1_d": "Найдите подходящий вуз и специальность",
+        "step2_t": "Подготовить TOPIK", "step2_d": "Достигните нужного уровня корейского",
+        "step3_t": "Подать на визу", "step3_d": "Получите визу под ваши цели",
+        "step4_t": "Начать жизнь в Корее", "step4_d": "Жильё, банк, здоровье и многое другое",
+        "feat_uni_t": "Поиск университетов", "feat_uni_d": "380+ вузов, специальностей, плата и стипендии в одном месте.",
+        "feat_job_t": "Доска вакансий", "feat_job_d": "AI-подбор вакансий для иностранных талантов, визово-дружелюбные работодатели.",
+        "feat_visa_t": "Проверка визы", "feat_visa_d": "Разберитесь в визах D-2, D-4, E-7, F-2, F-5 с помощью AI.",
+        "official_res": "Официальные ресурсы", "official_sub": "Надёжные правительственные и вузовские ссылки в одном месте",
+        "res_study": "🎓 Учебные ресурсы", "res_immig": "🛂 Иммиграционный гид", "res_tests": "📝 Экзамены и работа",
+        "job_portals": "Популярные порталы вакансий", "why_korea": "Почему Корея", "statistics": "Статистика", "resources": "Ресурсы",
+        "overview": "Обзор", "latest_news": "Последние новости",
+        "uni_research": "Исследование", "uni_school": "Информация о вузе", "uni_apply": "Подача",
+        "uni_admission": "Поступление", "uni_scholar": "Стипендии",
+        "filter_keyword": "Ключевое слово", "filter_region": "Регион", "filter_gks": "Право на GKS",
+        "kw_ph": "Поиск вузов или специальностей...", "all": "Все", "yes": "Да", "no": "Нет",
+        "loc_contact": "📍 Расположение и контакты", "tuition_support": "💰 Оплата и поддержка",
+        "grad_req": "🎓 Требования к выпуску", "avail_majors": "📚 Доступные специальности",
+        "btn_website": "🌐 Официальный сайт", "btn_apply": "📝 Подать сейчас", "btn_intl": "🌏 Международный отдел",
+        "career_cv": "Проверка резюме", "career_interview": "Пробное собеседование", "career_res": "Ресурсы",
+        "cv_title": "AI-проверка резюме", "cv_sub": "Загрузите резюме и получите мгновенную обратную связь для рынка труда Кореи",
+        "cv_upload": "Загрузить резюме (PDF или DOCX)", "cv_target": "Желаемая должность",
+        "cv_target_ph": "напр.: Инженер-программист", "cv_analyze": "🔍 Анализировать резюме",
+        "cv_score": "Общий балл", "cv_grammar": "Грамматика", "cv_structure": "Структура",
+        "cv_recs": "Рекомендации", "cv_culture": "Советы по культуре Кореи",
+        "iv_title": "🎤 AI-собеседование", "iv_sub": "Практикуйтесь с реальными вопросами и получайте AI-отзыв",
+        "iv_role": "Должность", "iv_role_ph": "напр.: Инженер-программист, Маркетинг-менеджер",
+        "iv_info": "Введите должность выше, чтобы начать пробное собеседование.",
+        "iv_start": "🚀 Начать собеседование", "iv_answer": "Ваш ответ", "iv_answer_ph": "Введите ответ (минимум 10 символов)...",
+        "iv_min": "Пожалуйста, напишите минимум 10 символов.", "iv_feedback": "Генерируем AI-отзыв...",
+        "iv_overall": "Итог", "iv_confidence": "Уверенность", "iv_fit": "Культурное соответствие",
+        "iv_strengths": "Сильные стороны", "iv_improve": "Улучшения", "iv_again": "🔄 Попробовать снова",
+        "job_board": "Доска вакансий", "job_matches": "Мои совпадения", "job_portals_tab": "Порталы",
+        "job_search_ph": "Поиск должности или компании...", "job_visa_filter": "Тип визы",
+        "job_match": "СОВПАДЕНИЕ", "job_apply": "Подать", "job_upload_cv": "Загрузите резюме, чтобы найти лучшие вакансии",
+        "job_find": "🎯 Найти совпадения",
+        "topik_schedule": "Расписание", "topik_register": "Регистрация", "topik_levels": "Уровни",
+        "topik_tips": "Советы по учёбе", "topik_centers": "Центры тестирования",
+        "topik_fee": "Информация о сборах", "topik_reg_btn": "Регистрация на topik.go.kr →",
+        "tc_search": "Поиск по городу...",
+        "visa_req": "Требования", "visa_docs": "Документы", "visa_proc": "Сроки обработки",
+        "visa_for": "Для кого", "visa_fee": "Сбор", "visa_dur": "Срок", "visa_apply": "Подать на HiKorea →",
+        "life_housing": "Жильё", "life_transport": "Транспорт", "life_health": "Здоровье",
+        "life_banking": "Банк", "life_safety": "Безопасность",
+        "auth_welcome": "Добро пожаловать в UniPath", "auth_login_sub": "Войдите, чтобы сохранять вузы, вакансии и получать уведомления",
+        "auth_reg_sub": "Создайте бесплатный аккаунт и персонализируйте свой путь",
+        "full_name": "Полное имя", "email": "Эл. почта", "password": "Пароль",
+        "confirm_pw": "Подтвердите пароль", "lang_pref": "Предпочитаемый язык",
+        "notif_pref": "Настройки уведомлений",
+        "notif_topik": "Уведомления о расписании TOPIK", "notif_visa": "Обновления визовой политики",
+        "notif_job": "Новые вакансии", "notif_uni": "Новости вузов", "notif_scholar": "Объявления о стипендиях",
+        "have_account": "Уже есть аккаунт? Войти", "no_account": "Нет аккаунта? Создать",
+        "pw_mismatch": "Пароли не совпадают.", "invalid_email": "Введите корректный адрес эл. почты.",
+        "reg_success": "🎉 Аккаунт создан! Добро пожаловать.", "login_fail": "Аккаунт не найден. Сначала зарегистрируйтесь.",
+        "login_success": "С возвращением!", "fill_all": "Пожалуйста, заполните все поля.",
+        "my_profile": "Мой профиль", "saved_uni": "🎓 Сохранённые вузы", "saved_jobs": "💼 Сохранённые вакансии",
+        "edit_notif": "Изменить уведомления", "profile_saved": "Настройки сохранены!",
+        "none_yet": "Пока ничего не сохранено.",
+        "chat_title": "Ассистент UNI", "chat_sub": "Спросите меня о жизни в Корее",
+        "placeholder": "Спросите меня о Корее что угодно...", "ask_ai": "💬 Спросить AI-ассистента",
+        "subscribe": "Получать обновления на почту", "email_label": "Ваша почта", "topics": "Интересующие темы",
+        "sub_success": "✅ Подписка оформлена! Обновления придут на вашем языке.",
+        "admin_panel": "⚙️ Панель администратора", "admin_pw": "Пароль администратора", "admin_ok": "✅ Доступ разрешён",
+        "admin_pdf": "📄 Загрузка PDF", "admin_stats": "📊 Статистика",
     },
 }
 
+
 def t(key):
-    return TR[st.session_state.get("lang", "🇺🇸 English")].get(key, key)
+    """Translate a key into the currently selected language, falling back to the key."""
+    lang = st.session_state.get("lang", "🇺🇸 English")
+    table = TR.get(lang, TR["🇺🇸 English"])
+    return table.get(key, TR["🇺🇸 English"].get(key, key))
 
-# ==========================================
-# SESSION STATE
-# ==========================================
-if "lang" not in st.session_state: st.session_state.lang = "🇺🇸 English"
-if "page" not in st.session_state: st.session_state.page = "HOME"
-if "chat_history" not in st.session_state: st.session_state.chat_history = []
-if "chat_open" not in st.session_state: st.session_state.chat_open = False
-if "interview_step" not in st.session_state: st.session_state.interview_step = 0
-if "interview_qa" not in st.session_state: st.session_state.interview_qa = []
 
-# ==========================================
-# AI INIT
-# ==========================================
+# ════════════════════════════════════════════════════════════════════════════
+# 5. SESSION STATE
+# ════════════════════════════════════════════════════════════════════════════
+def init_state():
+    defaults = {
+        "lang": "🇺🇸 English",
+        "page": "HOME",
+        "chat_history": [],
+        "user": None,
+        "auth_mode": "login",
+        "interview_step": 0,
+        "interview_qa": [],
+        "interview_questions": [],
+        "chat_open": False,
+        "cv_result": None,
+        "iv_result": None,
+        "job_match_result": None,
+    }
+    for k, v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
+
+
+init_state()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 6. SUPABASE + AI INITIALIZATION
+# ════════════════════════════════════════════════════════════════════════════
+AI_READY = False
+supabase = None
+
+
+def _secret(key, default=None):
+    """Safe secret accessor that never raises even when secrets.toml is missing."""
+    try:
+        return st.secrets[key]
+    except Exception:
+        return default
+
+
 try:
-    Settings.llm = Gemini(model="models/gemini-2.0-flash", api_key=st.secrets["GEMINI_API_KEY"])
-    Settings.embed_model = GeminiEmbedding(model_name="models/text-embedding-004", api_key=st.secrets["GEMINI_API_KEY"])
-    supabase: Client = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-    AI_READY = True
-except Exception as e:
-    AI_READY = False
+    if LLAMA_LIB and _secret("GEMINI_API_KEY"):
+        Settings.llm = Gemini(model="models/gemini-2.0-flash", api_key=_secret("GEMINI_API_KEY"))
+        Settings.embed_model = GoogleGenAIEmbedding(
+            model_name="models/text-embedding-004", api_key=_secret("GEMINI_API_KEY")
+        )
+    if SUPABASE_LIB and _secret("SUPABASE_URL") and _secret("SUPABASE_KEY"):
+        supabase = create_client(_secret("SUPABASE_URL"), _secret("SUPABASE_KEY"))
+    AI_READY = bool(supabase) and LLAMA_LIB and bool(_secret("GEMINI_API_KEY"))
+except Exception:
     supabase = None
+    AI_READY = False
 
-# ==========================================
-# SUPABASE DATA LOADING
-# ==========================================
-@st.cache_data(ttl=300)
+
+def localized(row, base, lang=None):
+    """Return the language-appropriate column value.
+
+    Tables may carry `<base>_en` and `<base>_ko` columns. Korean users see the
+    Korean text; everyone else sees English. For other languages we fall back to
+    English (AI translation hint shown in placeholders where relevant).
+    """
+    lang = lang or st.session_state.get("lang", "🇺🇸 English")
+    if not isinstance(row, dict):
+        return ""
+    ko = row.get(f"{base}_ko")
+    en = row.get(f"{base}_en")
+    plain = row.get(base)
+    if lang == "🇰🇷 한국어":
+        return ko or en or plain or ""
+    return en or plain or ko or ""
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 7. DATA LOADERS (Supabase, cached)
+# ════════════════════════════════════════════════════════════════════════════
+def _safe_select(table, order_col=None, desc=False, filters=None, limit=None):
+    """Run a guarded SELECT and return list of dict rows ([] on any failure)."""
+    if supabase is None:
+        return []
+    try:
+        q = supabase.table(table).select("*")
+        if filters:
+            for col, val in filters.items():
+                q = q.eq(col, val)
+        if order_col:
+            q = q.order(order_col, desc=desc)
+        if limit:
+            q = q.limit(limit)
+        res = q.execute()
+        return res.data or []
+    except Exception:
+        return []
+
+
+@st.cache_data(ttl=300, show_spinner=False)
 def load_universities():
-    try:
-        res = supabase.table("universities").select("*").execute()
-        return res.data if res.data else []
-    except: return []
+    return _safe_select("universities", order_col="name")
 
-@st.cache_data(ttl=300)
+
+@st.cache_data(ttl=300, show_spinner=False)
 def load_scholarships():
-    try:
-        res = supabase.table("scholarships").select("*").execute()
-        return res.data if res.data else []
-    except: return []
+    return _safe_select("scholarships")
 
-@st.cache_data(ttl=300)
+
+@st.cache_data(ttl=300, show_spinner=False)
 def load_jobs():
-    try:
-        res = supabase.table("jobs").select("*").order("match_score", desc=True).execute()
-        return res.data if res.data else []
-    except: return []
+    rows = _safe_select("jobs", order_col="match_score", desc=True, filters={"is_active": True})
+    if not rows:  # some schemas may not have is_active — retry unfiltered
+        rows = _safe_select("jobs", order_col="match_score", desc=True)
+    return rows
 
-@st.cache_data(ttl=300)
+
+@st.cache_data(ttl=300, show_spinner=False)
 def load_topik():
-    try:
-        res = supabase.table("topik_schedule").select("*").execute()
-        return res.data if res.data else []
-    except: return []
+    return _safe_select("topik_schedule", order_col="test_date")
 
-@st.cache_data(ttl=300)
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_topik_info():
+    return _safe_select("topik_info", order_col="id")
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_topik_structure():
+    return _safe_select("topik_structure")
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_topik_faq():
+    return _safe_select("topik_faq")
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_topik_centers():
+    return _safe_select("topik_centers", order_col="city")
+
+
+@st.cache_data(ttl=300, show_spinner=False)
 def load_visa():
-    try:
-        res = supabase.table("visa_info").select("*").execute()
-        return res.data if res.data else []
-    except: return []
+    return _safe_select("visa_info", order_col="visa_code")
 
-@st.cache_data(ttl=300)
+
+@st.cache_data(ttl=300, show_spinner=False)
 def load_news():
-    try:
-        res = supabase.table("news").select("*").order("published_at", desc=True).execute()
-        return res.data if res.data else []
-    except: return []
+    return _safe_select("news", order_col="published_at", desc=True, limit=10)
 
+
+# ════════════════════════════════════════════════════════════════════════════
+# 8. RAG + LLM RESPONSE
+# ════════════════════════════════════════════════════════════════════════════
 def get_rag_response(query):
-    lang_name = st.session_state.lang.split(" ", 1)[1] if " " in st.session_state.lang else "English"
-    system_prompt = f"You are UNI, a helpful AI guide for international students in South Korea. Always respond in {lang_name}. Be concise, friendly, and accurate."
+    """Answer a user question using the Supabase vector store first, then Gemini."""
+    lang = st.session_state.get("lang", "🇺🇸 English")
+    lang_name = lang.split(" ", 1)[1] if " " in lang else "English"
+    system = (
+        f"You are UNI, a helpful AI guide for international students in South Korea. "
+        f"Always respond in {lang_name}. Be accurate, friendly, and concise. "
+        f"When you are unsure, suggest official sources like hikorea.go.kr or topik.go.kr."
+    )
+
+    if not AI_READY:
+        return (
+            f"{t('error')} (AI service is not configured yet. Please add GEMINI_API_KEY and "
+            f"SUPABASE secrets.)",
+            "System",
+        )
+
+    # 1) Try the knowledge base (RAG).
     try:
         vector_store = SupabaseVectorStore(
-            postgres_connection_string=st.secrets["SUPABASE_DB_CONNECTION"],
-            collection_name="documents"
+            postgres_connection_string=_secret("SUPABASE_DB_CONNECTION"),
+            collection_name="documents",
         )
         index = VectorStoreIndex.from_vector_store(vector_store)
         qe = index.as_query_engine(similarity_top_k=3)
-        response = qe.query(f"{system_prompt}\n\nQuestion: {query}")
-        result = str(response)
-        if len(result.strip()) < 20 or "don't know" in result.lower() or "no information" in result.lower():
-            raise ValueError("Low quality RAG response")
+        response = qe.query(f"{system}\n\nQuestion: {query}")
+        result = str(response).strip()
+        low = result.lower()
+        if len(result) < 20 or "don't know" in low or "no information" in low or "i do not have" in low:
+            raise ValueError("Low quality RAG result")
         return result, "UniPath Knowledge Base"
-    except:
+    except Exception:
+        # 2) Fall back to the base LLM.
         try:
-            response = Settings.llm.complete(f"{system_prompt}\n\nQuestion: {query}")
-            return str(response), "Gemini AI"
-        except:
-            return "I'm initializing. Please try again shortly.", "System"
+            response = Settings.llm.complete(f"{system}\n\nQuestion: {query}")
+            return str(response).strip(), "Gemini AI"
+        except Exception:
+            return t("error"), "System"
 
-# ==========================================
-# TOP NAVIGATION
-# ==========================================
+
+def llm_complete(prompt):
+    """Thin guarded wrapper around the LLM for CV/interview/job-match features."""
+    if not AI_READY:
+        return None
+    try:
+        return str(Settings.llm.complete(prompt)).strip()
+    except Exception:
+        return None
+
+
+def extract_pdf_text(uploaded_file):
+    """Extract text from an uploaded PDF/DOCX-ish file. Returns string ('' on fail)."""
+    try:
+        import pypdf
+        reader = pypdf.PdfReader(io.BytesIO(uploaded_file.read()))
+        return "".join([(p.extract_text() or "") for p in reader.pages])
+    except Exception:
+        try:
+            uploaded_file.seek(0)
+            return uploaded_file.read().decode("utf-8", errors="ignore")
+        except Exception:
+            return ""
+
+
+def parse_json_block(text):
+    """Best-effort extraction of a JSON object from an LLM response."""
+    if not text:
+        return None
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+    m = re.search(r"\{.*\}", text, re.DOTALL)
+    if m:
+        try:
+            return json.loads(m.group(0))
+        except Exception:
+            return None
+    return None
+
+
+# ─── small UI helpers ────────────────────────────────────────────────────────
+def card_open(extra=""):
+    st.markdown(f'<div class="upk-card" style="{extra}">', unsafe_allow_html=True)
+
+
+def card_close():
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def section_header(title, sub=""):
+    html = f'<div class="section-title">{title}</div>'
+    if sub:
+        html += f'<div class="section-sub">{sub}</div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def divider():
+    st.markdown('<hr class="soft-divider"/>', unsafe_allow_html=True)
+
+
+def goto(page):
+    st.session_state.page = page
+    st.rerun()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 9. NAVIGATION
+# ════════════════════════════════════════════════════════════════════════════
+NAV_ITEMS = [
+    ("HOME", "nav_home"), ("UNIVERSITY", "nav_university"), ("CAREER", "nav_career"),
+    ("JOB", "nav_job"), ("TOPIK", "nav_topik"), ("VISA", "nav_visa"), ("LIFE", "nav_life"),
+]
+
+
 def render_nav():
-    pages = ["HOME", "UNIVERSITY", "CAREER", "JOB", "TOPIK", "VISA"]
-    labels = [t("home"), t("university"), t("career"), t("job"), t("topik"), t("visa")]
-    icons = ["🏠", "🎓", "🚀", "💼", "📝", "🛂"]
+    st.markdown(
+        '<div class="nav-logo">🎓 Uni<span>Path</span></div>',
+        unsafe_allow_html=True,
+    )
+    cols = st.columns([1.0] * len(NAV_ITEMS) + [1.4, 1.0])
 
-    col_logo, col_nav, col_lang = st.columns([2, 7, 2])
-    with col_logo:
-        st.markdown("""
-        <div class="nav-logo" style="padding:16px 0;">
-            <div class="nav-logo-icon">🎓</div>
-            <span class="nav-logo-text">UniPath</span>
-        </div>""", unsafe_allow_html=True)
+    for i, (page, key) in enumerate(NAV_ITEMS):
+        with cols[i]:
+            label = t(key)
+            if st.button(label, key=f"nav_{page}", use_container_width=True):
+                goto(page)
 
-    with col_nav:
-        cols = st.columns(len(pages))
-        for i, (page, label, icon) in enumerate(zip(pages, labels, icons)):
-            with cols[i]:
-                is_active = st.session_state.page == page
-                btn_style = "primary" if is_active else "secondary"
-                if st.button(f"{icon} {label}", key=f"nav_{page}", use_container_width=True):
-                    st.session_state.page = page
-                    st.rerun()
+    # Language selector
+    with cols[len(NAV_ITEMS)]:
+        new_lang = st.selectbox(
+            t("language"),
+            LANGUAGES,
+            index=LANGUAGES.index(st.session_state.lang) if st.session_state.lang in LANGUAGES else 0,
+            key="lang_select",
+            label_visibility="collapsed",
+        )
+        if new_lang != st.session_state.lang:
+            st.session_state.lang = new_lang
+            st.rerun()
 
-    with col_lang:
-        col_a, col_b = st.columns([3,1])
-        with col_a:
-            new_lang = st.selectbox("🌐", list(TR.keys()),
-                                    index=list(TR.keys()).index(st.session_state.lang),
-                                    label_visibility="collapsed", key="lang_sel")
-            if new_lang != st.session_state.lang:
-                st.session_state.lang = new_lang
-                st.rerun()
-        with col_b:
-            user = st.session_state.get("user")
-            if user:
-                if st.button("👤", key="nav_profile", help=user.get("name","")):
-                    st.session_state.page = "PROFILE"
-                    st.rerun()
-            else:
-                if st.button("🔑", key="nav_auth"):
-                    st.session_state.page = "AUTH"
-                    st.session_state.auth_mode = "register"
-                    st.rerun()
+    # Auth button
+    with cols[len(NAV_ITEMS) + 1]:
+        if st.session_state.user:
+            name = st.session_state.user.get("name", "Me")
+            short = (name[:8] + "…") if len(name) > 9 else name
+            if st.button(f"👤 {short}", key="nav_profile", use_container_width=True):
+                goto("PROFILE")
+        else:
+            if st.button("🔑", key="nav_auth", use_container_width=True):
+                goto("AUTH")
 
-# ==========================================
-# HOME PAGE
-# ==========================================
+    divider()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 10. HOME PAGE
+# ════════════════════════════════════════════════════════════════════════════
+STUDY_LINKS = [
+    ("Korean Government Scholarship (GKS)", "https://www.studyinkorea.go.kr"),
+    ("University Search — Study in Korea", "https://www.studyinkorea.go.kr/en/main.do"),
+    ("TOPIK Official Information", "https://www.topik.go.kr"),
+    ("Visa Guide — HiKorea", "https://www.hikorea.go.kr"),
+    ("Life in Korea Guide", "https://www.korea.net"),
+    ("Work Guide for Foreigners", "https://www.work.go.kr"),
+    ("Korea Immigration News", "https://www.immigration.go.kr"),
+    ("Study Flowchart — KGSP", "https://www.studyinkorea.go.kr/en/sub/gks/allnew_invite.do"),
+]
+IMMIG_LINKS = [
+    ("D-2 Student Visa", "https://www.hikorea.go.kr"),
+    ("D-4 Language Training Visa", "https://www.hikorea.go.kr"),
+    ("E-7 Specialized Work Visa", "https://www.hikorea.go.kr"),
+    ("F-2 Residence Visa", "https://www.hikorea.go.kr"),
+    ("F-5 Permanent Residency", "https://www.hikorea.go.kr"),
+    ("Foreigner Registration (ARC)", "https://www.hikorea.go.kr"),
+    ("Change of Address", "https://www.hikorea.go.kr"),
+    ("Part-time Work Permit Rules", "https://www.hikorea.go.kr"),
+]
+TEST_LINKS = [
+    ("TOPIK Official Site", "https://www.topik.go.kr"),
+    ("TOPIK Exam Schedule", "https://www.topik.go.kr"),
+    ("TOPIK Test Centers", "https://www.topik.go.kr"),
+    ("Immigration Office Locator", "https://www.hikorea.go.kr"),
+    ("Wanted Job Portal", "https://www.wanted.co.kr"),
+    ("Saramin Jobs", "https://www.saramin.co.kr"),
+    ("Work24 (Employment)", "https://www.work.go.kr"),
+]
+JOB_PORTALS = [
+    ("Wanted", "https://www.wanted.co.kr", "Tech & startup roles with great UX"),
+    ("Saramin", "https://www.saramin.co.kr", "Korea's largest job marketplace"),
+    ("JobKorea", "https://www.jobkorea.co.kr", "Broad listings across industries"),
+    ("Work24", "https://www.work.go.kr", "Government employment portal"),
+    ("K-Work", "https://www.k-work.or.kr", "Jobs for foreign residents"),
+    ("KoMate", "https://www.komate.kr", "Foreigner-friendly part-time jobs"),
+    ("Incruit", "https://www.incruit.com", "Established Korean job board"),
+    ("Employment24", "https://www.work.go.kr", "Public employment services"),
+    ("KOWORK", "https://www.kowork.kr", "Support for migrant workers"),
+]
+
+
+def _link_card(title, links):
+    rows = "".join(
+        f'<a class="link-row" href="{url}" target="_blank">🔗 {name}</a>' for name, url in links
+    )
+    st.markdown(f'<div class="link-card"><h4>{title}</h4>{rows}</div>', unsafe_allow_html=True)
+
+
 def page_home():
-    # Hero
-    st.markdown(f"""
-    <div class="hero-wrap">
-        <div class="hero-badge">🌏 AI-Powered Platform for International Students</div>
-        <div class="hero-title">{t('title').replace(chr(10), '<br>')}</div>
-        <p class="hero-sub">{t('subtitle')}</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # ---- Hero ----
+    st.markdown(
+        f"""
+        <div class="hero">
+            <span class="hero-badge">{t('home_badge')}</span>
+            <h1>{t('home_title')}</h1>
+            <p>{t('home_subtitle')}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    # KPI Row
-    st.markdown(f"""
-    <div class="kpi-section">
-        <div class="kpi-card">
-            <div class="kpi-icon">🛂</div>
-            <div class="kpi-val">24</div>
-            <div class="kpi-lab">{t('visa_types')}</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon">🏛️</div>
-            <div class="kpi-val">386</div>
-            <div class="kpi-lab">{t('universities')}</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon">📝</div>
-            <div class="kpi-val">LV.1~6</div>
-            <div class="kpi-lab">{t('topik_level')}</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon">💼</div>
-            <div class="kpi-val">1,240</div>
-            <div class="kpi-lab">{t('job_openings')}</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    tabs = st.tabs([t("overview"), t("why_korea"), t("statistics"), t("resources")])
 
-    st.markdown("<div style='height:80px'></div>", unsafe_allow_html=True)
+    # ───────────────────────── TAB 1: OVERVIEW ─────────────────────────
+    with tabs[0]:
+        # KPI cards floating over hero
+        st.markdown(
+            f"""
+            <div class="kpi-wrap">
+                <div class="kpi-card"><div class="kpi-icon">🛂</div>
+                    <div class="kpi-value">24</div><div class="kpi-label">{t('kpi_visa')}</div></div>
+                <div class="kpi-card"><div class="kpi-icon">🏛️</div>
+                    <div class="kpi-value">386</div><div class="kpi-label">{t('kpi_uni')}</div></div>
+                <div class="kpi-card"><div class="kpi-icon">📊</div>
+                    <div class="kpi-value">LV.1~6</div><div class="kpi-label">{t('kpi_topik')}</div></div>
+                <div class="kpi-card"><div class="kpi-icon">💼</div>
+                    <div class="kpi-value">1,240</div><div class="kpi-label">{t('kpi_jobs')}</div></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    # Plan Your Journey
-    st.markdown(f'<div class="sec-header"><div class="sec-title">🗺️ {t("plan_title")}</div></div>', unsafe_allow_html=True)
-    st.markdown(f"""
-    <div class="content-pad">
-    <div class="step-flow">
-        <div class="step-item">
-            <div class="step-num">1</div>
-            <div style='font-weight:700;color:#0D3B8E;font-size:0.9rem;'>{t('plan_1')}</div>
-        </div>
-        <div class="step-item">
-            <div class="step-num">2</div>
-            <div style='font-weight:700;color:#0D3B8E;font-size:0.9rem;'>{t('plan_2')}</div>
-        </div>
-        <div class="step-item">
-            <div class="step-num">3</div>
-            <div style='font-weight:700;color:#0D3B8E;font-size:0.9rem;'>{t('plan_3')}</div>
-        </div>
-        <div class="step-item">
-            <div class="step-num">4</div>
-            <div style='font-weight:700;color:#0D3B8E;font-size:0.9rem;'>{t('plan_4')}</div>
-        </div>
-    </div>
-    </div>
-    """, unsafe_allow_html=True)
+        st.write("")
+        divider()
 
-    # Feature Cards
-    st.markdown(f'<div class="sec-header"><div class="sec-title">✨ What You Can Do</div></div>', unsafe_allow_html=True)
-    with st.container():
-        st.markdown('<div class="content-pad">', unsafe_allow_html=True)
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.markdown(f"""
-            <div class="g-card">
-                <div style='font-size:2.5rem;margin-bottom:12px;'>🎓</div>
-                <span class="tag tag-navy">{t('new_badge')}</span>
-                <h3>{t('university')}</h3>
-                <p>Search 386+ universities with GKS scholarship support. Get contact info, graduation requirements, and direct application links.</p>
-            </div>""", unsafe_allow_html=True)
-        with c2:
-            st.markdown(f"""
-            <div class="g-card">
-                <div style='font-size:2.5rem;margin-bottom:12px;'>💼</div>
-                <span class="tag tag-green">{t('hot_badge')}</span>
-                <h3>{t('job')}</h3>
-                <p>Browse verified job listings for international talent. Filter by visa type, match with your CV, and get AI-powered summaries.</p>
-            </div>""", unsafe_allow_html=True)
-        with c3:
-            st.markdown(f"""
-            <div class="g-card">
-                <div style='font-size:2.5rem;margin-bottom:12px;'>🛂</div>
-                <span class="tag tag-orange">AI</span>
-                <h3>{t('visa')}</h3>
-                <p>Check your D-2, E-7, F-2 visa eligibility instantly. Step-by-step guides, document checklists, and HiKorea direct links.</p>
-            </div>""", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        # Plan your journey
+        section_header(t("plan_title"), t("plan_sub"))
+        st.markdown(
+            f"""
+            <div class="flow-wrap">
+                <div class="flow-step"><div class="flow-num">1</div>
+                    <h4>{t('step1_t')}</h4><p>{t('step1_d')}</p></div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step"><div class="flow-num">2</div>
+                    <h4>{t('step2_t')}</h4><p>{t('step2_d')}</p></div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step"><div class="flow-num">3</div>
+                    <h4>{t('step3_t')}</h4><p>{t('step3_d')}</p></div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step"><div class="flow-num">4</div>
+                    <h4>{t('step4_t')}</h4><p>{t('step4_d')}</p></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    # Job Portal Logos
-    st.markdown(f'<div class="sec-header"><div class="sec-title">🔗 Job Portals</div><div class="sec-sub">Connect directly to trusted Korean job platforms</div></div>', unsafe_allow_html=True)
-    st.markdown("""
-    <div class="content-pad">
-    <div class="portals-row">
-        <a href="https://www.wanted.co.kr" target="_blank" class="portal-chip">Wanted</a>
-        <a href="https://www.saramin.co.kr" target="_blank" class="portal-chip">Saramin</a>
-        <a href="https://www.jobkorea.co.kr" target="_blank" class="portal-chip">JobKorea</a>
-        <a href="https://www.work24.go.kr" target="_blank" class="portal-chip">Work24</a>
-        <a href="https://www.kwork.or.kr" target="_blank" class="portal-chip">K-Work</a>
-    </div>
-    </div>
-    """, unsafe_allow_html=True)
+        st.write("")
+        # AI assistant CTA
+        st.markdown(
+            f'<div style="text-align:center;margin:10px 0 26px 0;">'
+            f'<span class="chat-cta">{t("ask_ai")} — open the sidebar →</span></div>',
+            unsafe_allow_html=True,
+        )
 
-# ==========================================
-# UNIVERSITY PAGE
-# ==========================================
+        divider()
+
+        # Feature cards
+        section_header("Explore the Platform", t("plan_sub"))
+        fc1, fc2, fc3 = st.columns(3)
+        with fc1:
+            st.markdown(
+                f'<div class="upk-card"><span class="badge badge-new">NEW</span>'
+                f'<h3>🏛️ {t("feat_uni_t")}</h3><p>{t("feat_uni_d")}</p></div>',
+                unsafe_allow_html=True,
+            )
+            if st.button(f"🔎 {t('search')}", key="home_uni_btn", use_container_width=True):
+                goto("UNIVERSITY")
+        with fc2:
+            st.markdown(
+                f'<div class="upk-card"><span class="badge badge-hot">HOT</span>'
+                f'<h3>💼 {t("feat_job_t")}</h3><p>{t("feat_job_d")}</p></div>',
+                unsafe_allow_html=True,
+            )
+            if st.button(f"📋 {t('job_board')}", key="home_job_btn", use_container_width=True):
+                goto("JOB")
+        with fc3:
+            st.markdown(
+                f'<div class="upk-card"><span class="badge badge-ai">AI</span>'
+                f'<h3>🛂 {t("feat_visa_t")}</h3><p>{t("feat_visa_d")}</p></div>',
+                unsafe_allow_html=True,
+            )
+            if st.button(f"✅ {t('nav_visa')}", key="home_visa_btn", use_container_width=True):
+                goto("VISA")
+
+        divider()
+
+        # Official resources
+        section_header(t("official_res"), t("official_sub"))
+        rc1, rc2, rc3 = st.columns(3)
+        with rc1:
+            _link_card(t("res_study"), STUDY_LINKS)
+        with rc2:
+            _link_card(t("res_immig"), IMMIG_LINKS)
+        with rc3:
+            _link_card(t("res_tests"), TEST_LINKS)
+
+        divider()
+
+        # Job portal logos row
+        section_header(t("job_portals"))
+        logo_cols = st.columns(5)
+        top5 = JOB_PORTALS[:5]
+        for i, (name, url, _) in enumerate(top5):
+            with logo_cols[i]:
+                st.markdown(
+                    f'<a class="portal-card" href="{url}" target="_blank" style="display:block;">'
+                    f'<h4>{name}</h4><p>{t("visit")} →</p></a>',
+                    unsafe_allow_html=True,
+                )
+
+    # ───────────────────────── TAB 2: WHY KOREA ─────────────────────────
+    with tabs[1]:
+        section_header(t("why_korea"), "A safe, world-class destination for your education")
+        st.markdown(
+            """
+            <div class="stat-grid">
+                <div class="stat-box"><div class="stat-big">160,000+</div>
+                    <div class="stat-cap">International Students in Korea</div></div>
+                <div class="stat-box"><div class="stat-big">3</div>
+                    <div class="stat-cap">Korean Universities in World Top 100</div></div>
+                <div class="stat-box"><div class="stat-big">#1</div>
+                    <div class="stat-cap">Fastest Internet Speed Globally</div></div>
+                <div class="stat-box"><div class="stat-big">100+</div>
+                    <div class="stat-cap">Countries Reached by K-Culture</div></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        divider()
+        section_header("Six Reasons to Choose Korea")
+        reasons = [
+            ("🛡️", "Safety", "Among the safest countries in the world, with low crime and 24/7 convenience."),
+            ("🎓", "Education Quality", "Globally ranked universities with strong STEM, business and arts programs."),
+            ("📈", "Career Opportunities", "A booming tech, manufacturing and creative economy hungry for talent."),
+            ("🎬", "K-Culture", "Live at the heart of music, film, food and fashion the world loves."),
+            ("💰", "Affordable Living", "Generous scholarships and reasonable costs compared to the US/EU."),
+            ("🚀", "Advanced Technology", "5G everywhere, smart cities, and cutting-edge research facilities."),
+        ]
+        r1 = st.columns(3)
+        r2 = st.columns(3)
+        for i, (icon, title, desc) in enumerate(reasons):
+            col = (r1 if i < 3 else r2)[i % 3]
+            with col:
+                st.markdown(
+                    f'<div class="reason-card"><div class="ri">{icon}</div>'
+                    f'<h4>{title}</h4><p>{desc}</p></div>',
+                    unsafe_allow_html=True,
+                )
+                st.write("")
+
+    # ───────────────────────── TAB 3: STATISTICS ─────────────────────────
+    with tabs[2]:
+        section_header(t("statistics"), "International student trends in South Korea")
+        if not PLOTLY_READY:
+            st.info("Charts require plotly. Install with: pip install plotly")
+        else:
+            c1, c2 = st.columns(2)
+            with c1:
+                years = ["2019", "2020", "2021", "2022", "2023", "2024"]
+                counts = [160165, 153695, 152281, 166892, 181842, 208962]
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=years, y=counts, mode="lines+markers",
+                    line=dict(color="#0D3B8E", width=4),
+                    marker=dict(size=10, color="#00C897"),
+                    fill="tozeroy", fillcolor="rgba(13,59,142,0.08)",
+                ))
+                fig.update_layout(
+                    title="International Students in Korea (Trend)",
+                    paper_bgcolor="white", plot_bgcolor="white",
+                    font=dict(family="Outfit"), height=360, margin=dict(t=50, b=20),
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            with c2:
+                nats = ["China", "Vietnam", "Mongolia", "Uzbekistan", "Japan", "Others"]
+                share = [33, 23, 6, 5, 4, 29]
+                fig2 = px.pie(
+                    names=nats, values=share, hole=0.5,
+                    color_discrete_sequence=["#0D3B8E", "#00C897", "#FF6B35", "#1a56c4", "#7C9CF0", "#CBD5E1"],
+                )
+                fig2.update_layout(
+                    title="Top Nationalities", paper_bgcolor="white",
+                    font=dict(family="Outfit"), height=360, margin=dict(t=50, b=20),
+                )
+                st.plotly_chart(fig2, use_container_width=True)
+
+            c3, c4 = st.columns(2)
+            with c3:
+                majors = ["Korean Language", "Business", "Engineering", "Arts", "Social Sci."]
+                vals = [38, 22, 18, 12, 10]
+                fig3 = go.Figure(go.Bar(
+                    x=vals, y=majors, orientation="h",
+                    marker=dict(color="#00C897"),
+                ))
+                fig3.update_layout(
+                    title="Popular Fields of Study (%)", paper_bgcolor="white", plot_bgcolor="white",
+                    font=dict(family="Outfit"), height=340, margin=dict(t=50, b=20),
+                )
+                st.plotly_chart(fig3, use_container_width=True)
+            with c4:
+                yrs = ["1yr", "2yr", "3yr", "4yr", "5yr"]
+                emp = [42, 58, 67, 74, 81]
+                fig4 = go.Figure(go.Bar(x=yrs, y=emp, marker=dict(color="#FF6B35")))
+                fig4.update_layout(
+                    title="Graduate Employment Rate (%)", paper_bgcolor="white", plot_bgcolor="white",
+                    font=dict(family="Outfit"), height=340, margin=dict(t=50, b=20),
+                )
+                st.plotly_chart(fig4, use_container_width=True)
+        st.markdown(
+            '<div class="glass-note">📌 Figures are illustrative trends compiled from public sources '
+            '(Korea Immigration Service, MOE). For official statistics, visit moe.go.kr.</div>',
+            unsafe_allow_html=True,
+        )
+
+    # ───────────────────────── TAB 4: RESOURCES ─────────────────────────
+    with tabs[3]:
+        section_header(t("resources"), "Curated links and the latest news")
+        rcol1, rcol2, rcol3 = st.columns(3)
+        with rcol1:
+            _link_card(t("res_study"), STUDY_LINKS)
+        with rcol2:
+            _link_card(t("res_immig"), IMMIG_LINKS)
+        with rcol3:
+            _link_card(t("res_tests"), TEST_LINKS)
+
+        divider()
+        section_header(t("latest_news"))
+        news = load_news()
+        if not news:
+            st.info(t("empty"))
+        else:
+            for n in news:
+                title_txt = localized(n, "title") or n.get("title", "—")
+                summary = localized(n, "summary") or n.get("summary", "")
+                category = n.get("category", "News")
+                source = n.get("source", "")
+                pub = n.get("published_at", "")
+                link = n.get("link") or n.get("url", "#")
+                st.markdown(
+                    f"""
+                    <div class="news-card">
+                        <span class="tag tag-navy">{category}</span>
+                        <h4>{title_txt}</h4>
+                        <p>{summary}</p>
+                        <div class="news-meta">📰 {source} &nbsp;•&nbsp; 🗓️ {pub} &nbsp;•&nbsp;
+                            <a href="{link}" target="_blank">{t('visit')} →</a></div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 11. UNIVERSITY PAGE
+# ════════════════════════════════════════════════════════════════════════════
+def _uni_field(row, *keys, default="—"):
+    for k in keys:
+        v = row.get(k)
+        if v:
+            return v
+    return default
+
+
 def page_university():
-    st.markdown(f'<div class="sec-header"><div class="sec-title">🎓 {t("university")}</div><div class="sec-sub">{t("uni_sub")}</div></div>', unsafe_allow_html=True)
-    tab1, tab2, tab3, tab4 = st.tabs([f"🔍 {t('research')}", f"🏛️ {t('school')}", f"📋 {t('apply')}", f"📖 {t('admission')}"])
+    section_header(f"🏛️ {t('nav_university')}", t("feat_uni_d"))
+    tabs = st.tabs([
+        t("uni_research"), t("uni_school"), t("uni_apply"),
+        t("uni_admission"), t("uni_scholar"),
+    ])
 
-    with tab1:
-        st.markdown('<div class="content-pad">', unsafe_allow_html=True)
-        c1, c2, c3 = st.columns([3, 1, 1])
-        with c1: keyword = st.text_input(t('search'), placeholder=f"{t('search_placeholder')}")
-        with c2: region = st.selectbox(t("region"), ["All", "Seoul", "Busan", "Daejeon", "Incheon", "Gwangju"])
-        with c3: gks = st.selectbox(t("gks_support"), [t("all"), "Yes", "No"])
+    unis = load_universities()
 
-        # Load from Supabase
-        db_unis = load_universities()
-        unis = []
-        for u in db_unis:
-            unis.append({
-                "name": u.get("name", ""),
-                "rank": u.get("rank", ""),
-                "region": u.get("region", ""),
-                "gks": u.get("gks", False),
-                "topik": u.get("topik_req", ""),
-                "phone": u.get("phone", ""),
-                "email": u.get("email", ""),
-                "url": u.get("url", "#"),
-                "apply_url": u.get("apply_url", "#"),
-                "intl_url": u.get("intl_url", "#"),
-                "founded": u.get("founded", ""),
-                "type": u.get("uni_type", ""),
-                "students": u.get("students", ""),
-                "majors": u.get("majors", ""),
-                "grad_req": u.get("grad_req", ""),
-                "tuition": u.get("tuition", ""),
-                "dorm": u.get("dorm", ""),
-                "scholarship": u.get("scholarship", ""),
-                "intl_office_hours": u.get("office_hours", ""),
-                "location_detail": u.get("location_detail", ""),
-            })
+    # ───────────── TAB 1: RESEARCH ─────────────
+    with tabs[0]:
+        f1, f2, f3 = st.columns([2, 1, 1])
+        with f1:
+            keyword = st.text_input(t("filter_keyword"), placeholder=t("kw_ph"), key="uni_kw")
+        with f2:
+            regions = sorted({_uni_field(u, "region", default="") for u in unis if u.get("region")})
+            region = st.selectbox(t("filter_region"), [t("all")] + regions, key="uni_region")
+        with f3:
+            gks = st.selectbox(t("filter_gks"), [t("all"), t("yes"), t("no")], key="uni_gks")
+
+        # Apply filters
+        filtered = []
+        for u in unis:
+            name = _uni_field(u, "name", default="")
+            majors = _uni_field(u, "majors", default="")
+            if keyword and keyword.lower() not in (name + " " + majors).lower():
+                continue
+            if region != t("all") and _uni_field(u, "region", default="") != region:
+                continue
+            gks_val = u.get("gks_eligible") or u.get("gks")
+            is_gks = bool(gks_val) and str(gks_val).lower() not in ("false", "0", "no", "")
+            if gks == t("yes") and not is_gks:
+                continue
+            if gks == t("no") and is_gks:
+                continue
+            filtered.append(u)
 
         if not unis:
-          unis = [
-            {
-                "name": "Sookmyung Women's University", "rank": "Top 15 Korea", "region": "Seoul", "gks": True,
-                "topik": "LV 3+", "phone": "+82-2-710-9114", "email": "oia@sookmyung.ac.kr",
-                "url": "https://www.sookmyung.ac.kr", "apply_url": "https://admission.sookmyung.ac.kr",
-                "intl_url": "https://oia.sookmyung.ac.kr",
-                "founded": "1906", "type": "Women's University", "students": "~14,000",
-                "majors": "Business, Pharmacy, Music, IT, Design, Education, Law",
-                "grad_req": "130 credits + TOPIK LV 3+ + Korean language 6 credits",
-                "tuition": "6,000,000 ~ 9,000,000 KRW/year",
-                "dorm": "Available (priority for international students)",
-                "scholarship": "Sookmyung Global Scholarship (50~100% tuition)",
-                "intl_office_hours": "Mon–Fri 09:00–18:00",
-                "location_detail": "Cheongpa-ro, Yongsan-gu, Seoul (near Sookmyung Women's Univ. Station)",
-            },
-            {
-                "name": "Seoul National University (SNU)", "rank": "#1 Korea", "region": "Seoul", "gks": True,
-                "topik": "LV 4+", "phone": "+82-2-880-5114", "email": "oia@snu.ac.kr",
-                "url": "https://en.snu.ac.kr", "apply_url": "https://admission.snu.ac.kr",
-                "intl_url": "https://oia.snu.ac.kr",
-                "founded": "1946", "type": "National University", "students": "~28,000",
-                "majors": "Engineering, Medicine, Law, Business, Humanities, Science, Agriculture",
-                "grad_req": "130 credits + TOPIK LV 4+ + Korean language 8 credits",
-                "tuition": "4,000,000 ~ 7,000,000 KRW/year (national uni — lower fees)",
-                "dorm": "Available (limited — apply early)",
-                "scholarship": "GKS, SNU Global Scholarship, ASEAN Scholarship",
-                "intl_office_hours": "Mon–Fri 09:00–18:00",
-                "location_detail": "Gwanak-ro, Gwanak-gu, Seoul (Nakseongdae Station)",
-            },
-            {
-                "name": "Yonsei University", "rank": "#3 Korea", "region": "Seoul", "gks": True,
-                "topik": "LV 4+", "phone": "+82-2-2123-2114", "email": "oia@yonsei.ac.kr",
-                "url": "https://www.yonsei.ac.kr", "apply_url": "https://oia.yonsei.ac.kr/apply",
-                "intl_url": "https://oia.yonsei.ac.kr",
-                "founded": "1885", "type": "Private University", "students": "~36,000",
-                "majors": "Business, Medicine, Engineering, Law, Social Sciences, Theology",
-                "grad_req": "130 credits + TOPIK LV 4+ + English proficiency",
-                "tuition": "8,000,000 ~ 12,000,000 KRW/year",
-                "dorm": "Available (Sinchon & International Campus)",
-                "scholarship": "GKS, Yonsei Merit Scholarship, Need-based aid",
-                "intl_office_hours": "Mon–Fri 09:00–17:30",
-                "location_detail": "Yonsei-ro, Seodaemun-gu, Seoul (Sinchon Station)",
-            },
-            {
-                "name": "Korea University (KU)", "rank": "#4 Korea", "region": "Seoul", "gks": True,
-                "topik": "LV 4+", "phone": "+82-2-3290-1114", "email": "oia@korea.ac.kr",
-                "url": "https://www.korea.ac.kr", "apply_url": "https://oia.korea.ac.kr",
-                "intl_url": "https://oia.korea.ac.kr",
-                "founded": "1905", "type": "Private University", "students": "~25,000",
-                "majors": "Law, Business, Medicine, Engineering, Liberal Arts, Science",
-                "grad_req": "130 credits + TOPIK LV 4+ + Korean language 4 credits",
-                "tuition": "8,500,000 ~ 13,000,000 KRW/year",
-                "dorm": "Available (priority lottery)",
-                "scholarship": "GKS, KU Global Scholarship, Academic Excellence Award",
-                "intl_office_hours": "Mon–Fri 09:00–18:00",
-                "location_detail": "Anam-ro, Seongbuk-gu, Seoul (Anam Station)",
-            },
-            {
-                "name": "Hanyang University", "rank": "#5 Korea", "region": "Seoul", "gks": True,
-                "topik": "LV 3+", "phone": "+82-2-2220-0114", "email": "intl@hanyang.ac.kr",
-                "url": "https://www.hanyang.ac.kr", "apply_url": "https://intl.hanyang.ac.kr",
-                "intl_url": "https://intl.hanyang.ac.kr",
-                "founded": "1939", "type": "Private University", "students": "~23,000",
-                "majors": "Engineering, Architecture, Medicine, Business, Music, Sports",
-                "grad_req": "130 credits + TOPIK LV 3+ + Korean language 3 credits",
-                "tuition": "7,500,000 ~ 11,000,000 KRW/year",
-                "dorm": "Available (international priority)",
-                "scholarship": "GKS, Hanyang International Scholarship (50~100%)",
-                "intl_office_hours": "Mon–Fri 09:00–17:00",
-                "location_detail": "Wangsimni-ro, Seongdong-gu, Seoul (Hanyang Univ. Station)",
-            },
-            {
-                "name": "Sungkyunkwan University (SKKU)", "rank": "#6 Korea", "region": "Seoul", "gks": True,
-                "topik": "LV 4+", "phone": "+82-2-760-0114", "email": "oia@skku.edu",
-                "url": "https://www.skku.edu", "apply_url": "https://oia.skku.edu",
-                "intl_url": "https://oia.skku.edu",
-                "founded": "1398", "type": "Private University (Samsung-affiliated)", "students": "~35,000",
-                "majors": "Business, Engineering, Medicine, Law, Humanities, Science",
-                "grad_req": "130 credits + TOPIK LV 4+",
-                "tuition": "8,000,000 ~ 12,500,000 KRW/year",
-                "dorm": "Available (Humanities/Natural Science campus)",
-                "scholarship": "GKS, SKKU Global Scholarship, Samsung Dream Scholarship",
-                "intl_office_hours": "Mon–Fri 09:00–18:00",
-                "location_detail": "Jongno-gu, Seoul & Suwon Campus",
-            },
-            {
-                "name": "Pusan National University", "rank": "#8 Korea", "region": "Busan", "gks": True,
-                "topik": "LV 3+", "phone": "+82-51-510-1114", "email": "intl@pusan.ac.kr",
-                "url": "https://www.pusan.ac.kr", "apply_url": "https://intl.pusan.ac.kr",
-                "intl_url": "https://intl.pusan.ac.kr",
-                "founded": "1946", "type": "National University", "students": "~28,000",
-                "majors": "Engineering, Medicine, Law, Business, Education, Arts",
-                "grad_req": "130 credits + TOPIK LV 3+",
-                "tuition": "3,500,000 ~ 6,500,000 KRW/year (national — lower fees)",
-                "dorm": "Available (international dormitory)",
-                "scholarship": "GKS, PNU Global Scholarship, Busan City Scholarship",
-                "intl_office_hours": "Mon–Fri 09:00–18:00",
-                "location_detail": "Busandaehak-ro, Geumjeong-gu, Busan (Busan Nat'l Univ. Station)",
-            },
-        ]
-
-        for uni in unis:
-            if keyword and keyword.lower() not in uni["name"].lower(): continue
-            if region != "All" and uni["region"] != region: continue
-            if gks == "Yes" and not uni["gks"]: continue
-
-            with st.expander(f"{'⭐ ' if 'Sookmyung' in uni['name'] else ''}{uni['name']}  |  📍 {uni['region']}  |  🏆 {uni['rank']}", expanded="Sookmyung" in uni["name"]):
-                st.markdown(f"""
-                <div style='display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;'>
-                    {'<span class="tag tag-green">GKS ✓</span>' if uni['gks'] else ''}
-                    <span class="tag tag-blue">TOPIK {uni['topik']}</span>
-                    <span class="tag tag-navy">Est. {uni['founded']}</span>
-                    <span class="tag tag-orange">{uni['type']}</span>
-                </div>
-                """, unsafe_allow_html=True)
-
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown(f"""
-                    <div class="g-card" style='margin-bottom:12px;'>
-                        <h3>📍 Location & Contact</h3>
-                        <p style='margin-top:8px;'>🏫 {uni['location_detail']}</p>
-                        <p>📞 {uni['phone']}</p>
-                        <p>✉️ {uni['email']}</p>
-                        <p>🕐 Office hours: {uni['intl_office_hours']}</p>
-                        <p>👥 Total students: {uni['students']}</p>
-                    </div>
-                    <div class="g-card">
-                        <h3>💰 Tuition & Scholarship</h3>
-                        <p style='margin-top:8px;'>💵 {uni['tuition']}</p>
-                        <p>🏠 Dormitory: {uni['dorm']}</p>
-                        <p>🎓 {uni['scholarship']}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with col2:
-                    st.markdown(f"""
-                    <div class="g-card" style='margin-bottom:12px;'>
-                        <h3>🎓 Graduation Requirements</h3>
-                        <p style='margin-top:8px;color:#475569;'>{uni['grad_req']}</p>
-                    </div>
-                    <div class="g-card">
-                        <h3>📚 Available Majors</h3>
-                        <p style='margin-top:8px;color:#475569;'>{uni['majors']}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                st.markdown(f"""
-                <div style='display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;'>
-                    <a href="{uni['url']}" target="_blank" style='background:#0D3B8E;color:white;padding:10px 20px;border-radius:50px;text-decoration:none;font-weight:600;font-size:0.9rem;'>🌐 Official Website</a>
-                    <a href="{uni['apply_url']}" target="_blank" style='background:#00C897;color:white;padding:10px 20px;border-radius:50px;text-decoration:none;font-weight:600;font-size:0.9rem;'>📝 Apply Now</a>
-                    <a href="{uni['intl_url']}" target="_blank" style='background:#FF6B35;color:white;padding:10px 20px;border-radius:50px;text-decoration:none;font-weight:600;font-size:0.9rem;'>🌏 International Office</a>
-                </div>
-                """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with tab2:
-        st.markdown('<div class="content-pad">', unsafe_allow_html=True)
-        st.markdown(f"""
-        <div class="g-card">
-            <h3>🎓 {t('graduation_req')}</h3>
-            <p>Most Korean universities require international students to complete:</p>
-            <ul style='margin-top:10px;color:#475569;line-height:2;'>
-                <li>Minimum 130 credits (varies by program)</li>
-                <li>TOPIK Level 3+ for graduation (Level 4+ for most SKY unis)</li>
-                <li>Korean language courses (12+ credits)</li>
-                <li>Internship or field practice (engineering, medical programs)</li>
-                <li>Thesis/dissertation for graduate programs</li>
-            </ul>
-        </div>
-        <div class="g-card">
-            <h3>📋 {t('documents')}</h3>
-            <ul style='margin-top:10px;color:#475569;line-height:2;'>
-                <li>Passport copy + visa status documents</li>
-                <li>Original diploma + official transcripts (apostilled)</li>
-                <li>TOPIK score certificate</li>
-                <li>Bank statement (minimum 9,000 USD recommended)</li>
-                <li>Health certificate</li>
-                <li>Proof of residence in Korea</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with tab3:
-        st.markdown('<div class="content-pad">', unsafe_allow_html=True)
-        st.info("💡 Ask our AI assistant for personalized application guidance based on your profile.")
-        if st.button(t("ask_ai"), key="uni_ask_ai"):
-            st.session_state.chat_open = True
-            st.rerun()
-        st.markdown(f"""
-        <div class="g-card">
-            <h3>📅 Application Timeline</h3>
-            <div style='display:flex;flex-direction:column;gap:12px;margin-top:12px;'>
-                <div style='display:flex;gap:16px;align-items:center;'>
-                    <span style='background:#0D3B8E;color:white;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:700;'>Sep–Oct</span>
-                    <span>Spring semester applications open</span>
-                </div>
-                <div style='display:flex;gap:16px;align-items:center;'>
-                    <span style='background:#00C897;color:white;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:700;'>Nov–Dec</span>
-                    <span>Document submission deadline</span>
-                </div>
-                <div style='display:flex;gap:16px;align-items:center;'>
-                    <span style='background:#FF6B35;color:white;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:700;'>Jan</span>
-                    <span>Results announcement</span>
-                </div>
-                <div style='display:flex;gap:16px;align-items:center;'>
-                    <span style='background:#6366F1;color:white;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:700;'>Mar</span>
-                    <span>Spring semester begins</span>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with tab4:
-        st.markdown('<div class="content-pad">', unsafe_allow_html=True)
-        st.markdown(f"""
-        <div class="g-card">
-            <h3>🌟 GKS (Global Korea Scholarship)</h3>
-            <p>Full government scholarship covering tuition, living expenses (900,000 KRW/month), and Korean language training.</p>
-            <div style='margin-top:12px;'>
-                <span class="tag tag-green">Full Tuition</span>
-                <span class="tag tag-blue">Monthly Stipend</span>
-                <span class="tag tag-navy">Korean Language</span>
-                <span class="tag tag-orange">Health Insurance</span>
-            </div>
-            <a href="https://www.studyinkorea.go.kr" target="_blank" style='display:inline-block;margin-top:16px;background:#0D3B8E;color:white;padding:10px 24px;border-radius:50px;text-decoration:none;font-weight:600;'>Apply on Study in Korea →</a>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# ==========================================
-# CAREER PAGE
-# ==========================================
-def page_career():
-    st.markdown(f'<div class="sec-header"><div class="sec-title">🚀 {t("career")}</div><div class="sec-sub">{t("career_sub")}</div></div>', unsafe_allow_html=True)
-    tab1, tab2, tab3 = st.tabs([f"📄 {t('cv_check')}", f"🎤 {t('mock_interview')}", "📚 Resources"])
-
-    with tab1:
-        st.markdown('<div class="content-pad">', unsafe_allow_html=True)
-        st.markdown(f"""
-        <div class="g-card">
-            <h3>📄 {t('upload_cv')}</h3>
-            <p>Upload your CV or cover letter for AI-powered grammar correction, structure analysis, and Korean job market optimization.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        uploaded = st.file_uploader(t('upload_cv'), type=["pdf", "docx", "txt"])
-        job_target = st.text_input("Target Job Title", placeholder="e.g. Software Engineer, Marketing Manager")
-        if st.button(t('submit'), key="cv_submit") and uploaded:
-            with st.spinner("Analyzing your CV..."):
-                time.sleep(2)
-            st.success("✅ CV Analysis Complete!")
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Overall Score", "87/100", "+12")
-            c2.metric("Grammar", "94/100", "+5")
-            c3.metric("Structure", "82/100", "+8")
-            st.markdown(f"""
-            <div class="g-card" style='border-left:4px solid #00C897;'>
-                <h3>💡 AI Recommendations</h3>
-                <ul style='color:#475569;line-height:2;margin-top:10px;'>
-                    <li>Add quantifiable achievements (e.g. "Increased sales by 30%")</li>
-                    <li>Include Korean language proficiency level</li>
-                    <li>Tailor your summary to Korean corporate culture</li>
-                    <li>Add TOPIK certificate to education section</li>
-                </ul>
-            </div>""", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with tab2:
-        st.markdown('<div class="content-pad">', unsafe_allow_html=True)
-        st.markdown(f"""
-        <div class="g-card">
-            <h3>🎤 {t('mock_interview')}</h3>
-            <p>Practice with our AI interviewer. Get real-time feedback on your answers, tone, and cultural fit for Korean companies.</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        job_role = st.text_input("🎯 Job Role for Interview", placeholder="e.g. Backend Developer, Marketing Manager, UX Designer", key="interview_role")
-
-        if job_role:
-            if st.button(t('start_interview'), key="start_intv", use_container_width=True):
-                st.session_state.interview_step = 1
-                st.session_state.interview_qa = []
-                lang_name = st.session_state.lang.split(" ", 1)[1] if " " in st.session_state.lang else "English"
-                st.session_state.interview_questions = [
-                    f"Tell me about yourself and why you want to work as {job_role} in Korea.",
-                    f"What specific skills do you bring to this {job_role} position?",
-                    "Describe a challenging situation you faced and how you resolved it.",
-                    "Why do you want to work for a Korean company specifically?",
-                    "Where do you see yourself in 5 years in Korea?"
-                ]
-                st.rerun()
+            st.info(t("empty"))
+        elif not filtered:
+            st.warning("No universities match your filters. Try widening your search.")
         else:
-            st.info("👆 Enter a job role above to start the interview")
+            st.caption(f"{len(filtered)} / {len(unis)} {t('nav_university').lower()}")
+            for u in filtered:
+                name = _uni_field(u, "name", default="University")
+                region_v = _uni_field(u, "region", default="—")
+                rank = _uni_field(u, "rank", "ranking", default="—")
+                expanded = "sookmyung" in name.lower()
+                header = f"⭐ {name}  |  📍 {region_v}  |  🏆 {rank}"
+                with st.expander(header, expanded=expanded):
+                    gks_val = u.get("gks_eligible") or u.get("gks")
+                    is_gks = bool(gks_val) and str(gks_val).lower() not in ("false", "0", "no", "")
+                    topik_req = _uni_field(u, "topik_req", "topik_requirement", default="TOPIK 3+")
+                    uni_type = _uni_field(u, "uni_type", "type", default="—")
+                    founded = _uni_field(u, "founded", "established", default="—")
+                    tags = (
+                        (f'<span class="tag tag-green">GKS ✓</span>' if is_gks else
+                         f'<span class="tag tag-grey">GKS ✗</span>')
+                        + f'<span class="tag tag-navy">TOPIK: {topik_req}</span>'
+                        + f'<span class="tag tag-orange">{uni_type}</span>'
+                        + f'<span class="tag tag-grey">Est. {founded}</span>'
+                    )
+                    st.markdown(f'<div style="margin-bottom:10px;">{tags}</div>', unsafe_allow_html=True)
 
-        if st.session_state.interview_step > 0:
-            q_idx = st.session_state.interview_step - 1
-            questions = st.session_state.get("interview_questions", [])
-            total = len(questions)
+                    lc, rc = st.columns(2)
+                    with lc:
+                        st.markdown(
+                            f"""
+                            <div class="upk-card"><h3>{t('loc_contact')}</h3>
+                            <p>📍 {_uni_field(u, 'location_detail', 'address')}<br>
+                            ☎️ {_uni_field(u, 'phone')}<br>
+                            ✉️ {_uni_field(u, 'email')}<br>
+                            🕘 {_uni_field(u, 'office_hours', default='Mon–Fri 09:00–18:00')}<br>
+                            👥 {_uni_field(u, 'students', 'student_count', default='—')} students</p>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                        st.markdown(
+                            f"""
+                            <div class="upk-card" style="margin-top:14px;"><h3>{t('tuition_support')}</h3>
+                            <p>💵 Tuition: {_uni_field(u, 'tuition', default='—')}<br>
+                            🏠 Dorm: {_uni_field(u, 'dorm', 'dorm_info', default='Available')}<br>
+                            🎁 Scholarship: {_uni_field(u, 'scholarship', 'scholarship_info', default='See admissions')}</p>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                    with rc:
+                        st.markdown(
+                            f"""
+                            <div class="upk-card"><h3>{t('grad_req')}</h3>
+                            <p>{_uni_field(u, 'grad_req', 'graduation_requirements', default='Standard credit & thesis requirements apply.')}</p>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                        st.markdown(
+                            f"""
+                            <div class="upk-card" style="margin-top:14px;"><h3>{t('avail_majors')}</h3>
+                            <p>{_uni_field(u, 'majors', default='Wide range of undergraduate & graduate programs.')}</p>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
 
-            # Progress bar
-            st.progress(min(q_idx / total, 1.0), text=f"Question {min(q_idx+1, total)} of {total}")
+                    b1, b2, b3 = st.columns(3)
+                    website = _uni_field(u, "website", "url", default="https://www.studyinkorea.go.kr")
+                    apply_url = _uni_field(u, "apply_url", default=website)
+                    intl_url = _uni_field(u, "intl_url", "international_office", default=website)
+                    with b1:
+                        st.markdown(f'<a class="link-row" style="text-align:center;background:#EEF2FF;" '
+                                    f'href="{website}" target="_blank">{t("btn_website")}</a>',
+                                    unsafe_allow_html=True)
+                    with b2:
+                        st.markdown(f'<a class="link-row" style="text-align:center;background:#E6FBF4;" '
+                                    f'href="{apply_url}" target="_blank">{t("btn_apply")}</a>',
+                                    unsafe_allow_html=True)
+                    with b3:
+                        st.markdown(f'<a class="link-row" style="text-align:center;background:#FFEDE5;" '
+                                    f'href="{intl_url}" target="_blank">{t("btn_intl")}</a>',
+                                    unsafe_allow_html=True)
 
-            if q_idx < total:
-                st.markdown(f"""
-                <div class="g-card" style='border-left:4px solid #0D3B8E;background:#F8FAFF;'>
-                    <p style='color:#94A3B8;font-size:0.82rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;'>Q{q_idx+1} / {total}</p>
-                    <h3 style='margin-top:8px;color:#0D3B8E;font-size:1.1rem;'>🤖 {questions[q_idx]}</h3>
-                </div>""", unsafe_allow_html=True)
+    # ───────────── TAB 2: SCHOOL INFO ─────────────
+    with tabs[1]:
+        section_header(t("uni_school"), "Graduation requirements, documents and deadlines")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(
+                """
+                <div class="upk-card"><h3>🎓 Graduation Requirements (typical)</h3>
+                <p>• Complete required credits (usually 130+ for bachelor's)<br>
+                • Maintain minimum GPA (often 2.0/4.5 or higher)<br>
+                • Pass a graduation thesis or capstone project<br>
+                • Meet Korean language milestones (TOPIK level often required)<br>
+                • Fulfill mandatory liberal arts / major core courses</p></div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with c2:
+            st.markdown(
+                """
+                <div class="upk-card"><h3>📋 Required Documents Checklist</h3>
+                <p>☑ Completed application form<br>
+                ☑ Passport copy & passport photos<br>
+                ☑ High school / bachelor's diploma & transcripts (apostilled)<br>
+                ☑ Proof of language ability (TOPIK / IELTS / TOEFL)<br>
+                ☑ Statement of purpose & study plan<br>
+                ☑ Recommendation letters (1–2)<br>
+                ☑ Financial proof (bank statement)<br>
+                ☑ Family relationship certificate</p></div>
+                """,
+                unsafe_allow_html=True,
+            )
+        divider()
+        st.markdown(
+            """
+            <div class="upk-card"><h3>🗓️ Important Deadlines (general)</h3>
+            <table class="upk-table">
+                <tr><th>Intake</th><th>Application Period</th><th>Notes</th></tr>
+                <tr><td>Spring (March)</td><td>September – November</td><td>Most popular intake</td></tr>
+                <tr><td>Fall (September)</td><td>March – May</td><td>Smaller programs</td></tr>
+                <tr><td>GKS (Government)</td><td>February – March (embassy)</td><td>One round per year</td></tr>
+            </table></div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-                answer = st.text_area("✍️ Your Answer:", height=130, key=f"ans_{q_idx}",
-                                       placeholder="Type your answer here... (minimum 2-3 sentences)")
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    if st.button(f"Next Question →", key=f"next_{q_idx}", use_container_width=True):
-                        if answer and len(answer.strip()) > 10:
-                            st.session_state.interview_qa.append({"q": questions[q_idx], "a": answer})
-                            st.session_state.interview_step += 1
-                            st.rerun()
-                        else:
-                            st.warning("Please write at least a short answer before continuing.")
-                with col2:
-                    if st.button("Skip ⏭", key=f"skip_{q_idx}", use_container_width=True):
-                        st.session_state.interview_qa.append({"q": questions[q_idx], "a": "(skipped)"})
+    # ───────────── TAB 3: APPLY ─────────────
+    with tabs[2]:
+        section_header(t("uni_apply"), "Your application timeline at a glance")
+        st.markdown(
+            f"""
+            <div class="flow-wrap">
+                <div class="flow-step"><div class="flow-num">1</div><h4>Research</h4>
+                    <p>Shortlist 3–5 universities</p></div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step"><div class="flow-num">2</div><h4>Prepare Docs</h4>
+                    <p>Apostille & translate</p></div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step"><div class="flow-num">3</div><h4>Submit</h4>
+                    <p>Online + courier</p></div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step"><div class="flow-num">4</div><h4>Interview</h4>
+                    <p>Online / on-site</p></div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step"><div class="flow-num">5</div><h4>Offer & Visa</h4>
+                    <p>CoA → D-2 visa</p></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        cc1, cc2 = st.columns([1, 1])
+        with cc1:
+            if st.button("💬 Ask AI for guidance", key="uni_ask_ai", use_container_width=True):
+                st.session_state.chat_history.append(
+                    {"role": "user", "content": "How do I apply to a Korean university step by step?"})
+                with st.spinner(t("loading")):
+                    ans, src = get_rag_response(
+                        "How do I apply to a Korean university step by step?")
+                st.session_state.chat_history.append(
+                    {"role": "assistant", "content": ans, "source": src})
+                st.toast("Answer added to the sidebar chat 👉")
+        with cc2:
+            checklist = (
+                "UNIPATH KOREA — UNIVERSITY APPLICATION CHECKLIST\n\n"
+                "[ ] Completed application form\n[ ] Passport copy & photos\n"
+                "[ ] Diploma & transcripts (apostilled)\n[ ] Language proof (TOPIK/IELTS/TOEFL)\n"
+                "[ ] Statement of purpose\n[ ] Study plan\n[ ] Recommendation letters\n"
+                "[ ] Financial proof\n[ ] Family relationship certificate\n[ ] Application fee paid\n"
+            )
+            st.download_button("⬇️ Download Checklist", checklist,
+                               "unipath_checklist.txt", use_container_width=True)
+
+    # ───────────── TAB 4: ADMISSION ─────────────
+    with tabs[3]:
+        section_header(t("uni_admission"), "GKS and university scholarships")
+        st.markdown(
+            """
+            <div class="upk-card"><h3>🌟 Global Korea Scholarship (GKS / KGSP)</h3>
+            <p>The flagship Korean government scholarship fully funds international students.</p>
+            <p>✅ Full tuition coverage<br>✅ Monthly stipend (~900,000 KRW graduate)<br>
+            ✅ Round-trip airfare<br>✅ One-year Korean language training<br>
+            ✅ Settlement & research allowance<br>✅ Medical insurance</p>
+            <p><b>Two tracks:</b> Embassy track (apply via Korean embassy in your country) and
+            University track (apply directly to a designated university).</p></div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown('<a class="link-row" style="text-align:center;background:#EEF2FF;margin-top:12px;" '
+                    'href="https://www.studyinkorea.go.kr" target="_blank">🌐 GKS Application Portal →</a>',
+                    unsafe_allow_html=True)
+
+    # ───────────── TAB 5: SCHOLARSHIPS ─────────────
+    with tabs[4]:
+        section_header(t("uni_scholar"), "Funding opportunities for international students")
+        schols = load_scholarships()
+        if not schols:
+            st.info(t("empty"))
+        else:
+            for s in schols:
+                provider = _uni_field(s, "provider", "name", default="Scholarship")
+                stype = _uni_field(s, "type", default="Merit")
+                coverage = _uni_field(s, "coverage", default="—")
+                monthly = _uni_field(s, "monthly", "monthly_amount", default="—")
+                topik_req = _uni_field(s, "topik_req", "topik_requirement", default="—")
+                with st.expander(f"🎁 {provider}  —  {coverage}"):
+                    st.markdown(
+                        f'<span class="tag tag-navy">{stype}</span>'
+                        f'<span class="tag tag-green">Monthly: {monthly}</span>'
+                        f'<span class="tag tag-orange">TOPIK: {topik_req}</span>',
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown(
+                        f"**Eligibility:** {_uni_field(s, 'eligibility', default='See provider details.')}")
+                    st.markdown(
+                        f"**Application deadline:** {_uni_field(s, 'deadline', 'application_deadline', default='Varies')}")
+                    apply_url = _uni_field(s, "apply_url", "url", default="https://www.studyinkorea.go.kr")
+                    st.markdown(f'<a class="link-row" style="text-align:center;background:#E6FBF4;" '
+                                f'href="{apply_url}" target="_blank">{t("apply")} →</a>',
+                                unsafe_allow_html=True)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 12. CAREER PAGE
+# ════════════════════════════════════════════════════════════════════════════
+INTERVIEW_QUESTIONS = [
+    "Tell me about yourself and why you want to work in Korea.",
+    "What are your greatest strengths, and how do they fit this role?",
+    "Describe a challenge you faced and how you overcame it.",
+    "How do you adapt to a new culture and work environment?",
+    "Where do you see yourself in five years, and why this company?",
+]
+
+
+def page_career():
+    section_header(f"💼 {t('nav_career')}", "Build a standout profile for the Korean job market")
+    tabs = st.tabs([t("career_cv"), t("career_interview"), t("career_res")])
+
+    # ───────────── TAB 1: CV CHECK ─────────────
+    with tabs[0]:
+        section_header(t("cv_title"), t("cv_sub"))
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            cv_file = st.file_uploader(t("cv_upload"), type=["pdf", "docx", "txt"], key="cv_upload")
+        with col2:
+            target = st.text_input(t("cv_target"), placeholder=t("cv_target_ph"), key="cv_target")
+
+        if st.button(t("cv_analyze"), key="cv_btn", use_container_width=True):
+            if not cv_file:
+                st.warning(t("cv_upload"))
+            else:
+                with st.spinner(t("loading")):
+                    text = extract_pdf_text(cv_file)
+                    if not text.strip():
+                        st.error("Could not read the file. Please try a text-based PDF.")
+                    else:
+                        prompt = (
+                            "You are an expert career coach for the South Korean job market. "
+                            f"Analyze this CV for the target role: '{target or 'general'}'. "
+                            "Return ONLY valid JSON with keys: overall (0-100 int), grammar (0-100 int), "
+                            "structure (0-100 int), recommendations (list of 4-6 short strings), "
+                            "korean_tips (list of 3-4 short strings about Korean workplace expectations).\n\n"
+                            f"CV TEXT:\n{text[:6000]}"
+                        )
+                        raw = llm_complete(prompt)
+                        data = parse_json_block(raw) if raw else None
+                        if not data:
+                            data = {
+                                "overall": 72, "grammar": 80, "structure": 68,
+                                "recommendations": [
+                                    "Add measurable achievements with numbers and impact.",
+                                    "Tailor your summary to the specific Korean company.",
+                                    "Keep the CV to 1–2 pages with clean formatting.",
+                                    "Include a professional photo (common in Korea).",
+                                ],
+                                "korean_tips": [
+                                    "Korean CVs often include a photo, age and visa status.",
+                                    "Highlight any Korean language ability (TOPIK level).",
+                                    "Show respect for hierarchy and teamwork in your summary.",
+                                ],
+                            }
+                            if not AI_READY:
+                                st.info("Showing a sample analysis (AI not configured).")
+                        st.session_state.cv_result = data
+
+        data = st.session_state.cv_result
+        if data:
+            m1, m2, m3 = st.columns(3)
+            m1.markdown(f'<div class="metric-box"><div class="mv">{data.get("overall","—")}</div>'
+                        f'<div class="ml">{t("cv_score")}</div></div>', unsafe_allow_html=True)
+            m2.markdown(f'<div class="metric-box"><div class="mv">{data.get("grammar","—")}</div>'
+                        f'<div class="ml">{t("cv_grammar")}</div></div>', unsafe_allow_html=True)
+            m3.markdown(f'<div class="metric-box"><div class="mv">{data.get("structure","—")}</div>'
+                        f'<div class="ml">{t("cv_structure")}</div></div>', unsafe_allow_html=True)
+            st.write("")
+            cc1, cc2 = st.columns(2)
+            with cc1:
+                recs = "".join(f'<div class="check-item"><span class="ck">✓</span>{r}</div>'
+                               for r in data.get("recommendations", []))
+                st.markdown(f'<div class="upk-card"><h3>💡 {t("cv_recs")}</h3>{recs}</div>',
+                            unsafe_allow_html=True)
+            with cc2:
+                tips = "".join(f'<div class="check-item"><span class="ck">🇰🇷</span>{r}</div>'
+                               for r in data.get("korean_tips", []))
+                st.markdown(f'<div class="upk-card"><h3>🏢 {t("cv_culture")}</h3>{tips}</div>',
+                            unsafe_allow_html=True)
+
+    # ───────────── TAB 2: MOCK INTERVIEW ─────────────
+    with tabs[1]:
+        section_header(t("iv_title"), t("iv_sub"))
+        role = st.text_input(t("iv_role"), placeholder=t("iv_role_ph"), key="iv_role")
+
+        if st.session_state.interview_step == 0:
+            if not role.strip():
+                st.info(t("iv_info"))
+            if st.button(t("iv_start"), key="iv_start_btn", disabled=not role.strip(),
+                         use_container_width=True):
+                st.session_state.interview_questions = INTERVIEW_QUESTIONS
+                st.session_state.interview_qa = []
+                st.session_state.interview_step = 1
+                st.session_state.iv_result = None
+                st.rerun()
+
+        step = st.session_state.interview_step
+        questions = st.session_state.interview_questions or INTERVIEW_QUESTIONS
+
+        if 0 < step <= len(questions):
+            st.progress(step / len(questions), text=f"Question {step} / {len(questions)}")
+            q = questions[step - 1]
+            st.markdown(
+                f'<div class="upk-card" style="border-left:5px solid var(--navy);">'
+                f'<h3>❓ Question {step}</h3><p style="font-size:16px;color:var(--ink);">{q}</p></div>',
+                unsafe_allow_html=True,
+            )
+            answer = st.text_area(t("iv_answer"), placeholder=t("iv_answer_ph"),
+                                  key=f"iv_ans_{step}", height=140)
+            b1, b2 = st.columns([1, 1])
+            with b1:
+                if st.button(t("next"), key=f"iv_next_{step}", use_container_width=True):
+                    if len(answer.strip()) < 10:
+                        st.warning(t("iv_min"))
+                    else:
+                        st.session_state.interview_qa.append({"q": q, "a": answer.strip()})
                         st.session_state.interview_step += 1
                         st.rerun()
-            else:
-                # AI Feedback using Gemini
-                with st.spinner("🤖 Generating AI feedback..."):
-                    qa_text = "\n".join([f"Q: {qa['q']}\nA: {qa['a']}" for qa in st.session_state.interview_qa])
-                    lang_name = st.session_state.lang.split(" ", 1)[1] if " " in st.session_state.lang else "English"
-                    try:
-                        feedback_prompt = f"""You are a Korean HR expert. Evaluate this job interview for {st.session_state.get('interview_role','the position')}.
-Respond in {lang_name}.
-
-Interview Q&A:
-{qa_text}
-
-Give:
-1. Overall score (0-100)
-2. Confidence score (0-100)  
-3. Cultural fit score (0-100)
-4. 3 specific strengths
-5. 2 improvement areas
-6. One encouragement sentence
-
-Format as JSON: {{"overall": 85, "confidence": 80, "cultural_fit": 75, "strengths": ["...", "...", "..."], "improvements": ["...", "..."], "encouragement": "..."}}"""
-                        fb_resp = Settings.llm.complete(feedback_prompt)
-                        import json as _json
-                        fb = _json.loads(str(fb_resp).strip().replace("```json","").replace("```",""))
-                    except:
-                        fb = {"overall": 80, "confidence": 78, "cultural_fit": 75,
-                              "strengths": ["Good communication", "Clear motivation", "Relevant experience"],
-                              "improvements": ["More specific examples", "Korean cultural awareness"],
-                              "encouragement": "Great effort! Keep practicing to improve your Korean interview skills."}
-
-                st.markdown(f"""
-                <div class="g-card" style='border-left:4px solid #00C897;'>
-                    <h3 style='color:#0D3B8E;margin-bottom:16px;'>📊 AI Interview Feedback</h3>
-                    <div style='display:flex;gap:16px;margin-bottom:20px;'>
-                        <div style='text-align:center;flex:1;background:#EEF2FF;padding:16px;border-radius:12px;'>
-                            <div style='font-size:2rem;font-weight:800;color:#0D3B8E;'>{fb.get("overall",80)}</div>
-                            <div style='font-size:0.8rem;color:#64748B;font-weight:600;'>Overall</div>
-                        </div>
-                        <div style='text-align:center;flex:1;background:#ECFDF5;padding:16px;border-radius:12px;'>
-                            <div style='font-size:2rem;font-weight:800;color:#065F46;'>{fb.get("confidence",78)}</div>
-                            <div style='font-size:0.8rem;color:#64748B;font-weight:600;'>Confidence</div>
-                        </div>
-                        <div style='text-align:center;flex:1;background:#FFF7ED;padding:16px;border-radius:12px;'>
-                            <div style='font-size:2rem;font-weight:800;color:#9A3412;'>{fb.get("cultural_fit",75)}</div>
-                            <div style='font-size:0.8rem;color:#64748B;font-weight:600;'>Cultural Fit</div>
-                        </div>
-                    </div>
-                    <div style='display:flex;gap:16px;'>
-                        <div style='flex:1;'>
-                            <p style='font-weight:700;color:#065F46;margin-bottom:8px;'>✅ Strengths</p>
-                            {"".join([f"<p style='color:#475569;margin-bottom:4px;'>• {s}</p>" for s in fb.get("strengths",[])])}
-                        </div>
-                        <div style='flex:1;'>
-                            <p style='font-weight:700;color:#9A3412;margin-bottom:8px;'>💡 Improve</p>
-                            {"".join([f"<p style='color:#475569;margin-bottom:4px;'>• {i}</p>" for i in fb.get("improvements",[])])}
-                        </div>
-                    </div>
-                    <div style='margin-top:16px;padding:12px;background:#F0FDF4;border-radius:12px;'>
-                        <p style='color:#065F46;font-weight:600;'>🌟 {fb.get("encouragement","")}</p>
-                    </div>
-                </div>""", unsafe_allow_html=True)
-
-                if st.button("🔄 Try Again", use_container_width=True):
-                    st.session_state.interview_step = 0
-                    st.session_state.interview_qa = []
+            with b2:
+                if st.button(t("skip"), key=f"iv_skip_{step}", use_container_width=True):
+                    st.session_state.interview_qa.append({"q": q, "a": "(skipped)"})
+                    st.session_state.interview_step += 1
                     st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
 
-    with tab3:
-        st.markdown('<div class="content-pad">', unsafe_allow_html=True)
-        st.markdown(f"""
-        <div class="g-card">
-            <h3>📚 Career Resources</h3>
-            <div style='display:flex;flex-direction:column;gap:12px;margin-top:12px;'>
-                <a href="https://www.work24.go.kr" target="_blank" style='display:flex;align-items:center;gap:12px;padding:12px 16px;border:1.5px solid #E2E8F0;border-radius:12px;text-decoration:none;color:#0D3B8E;font-weight:600;'>
-                    🏢 Work24 — Government Employment Portal
-                </a>
-                <a href="https://www.hrd.go.kr" target="_blank" style='display:flex;align-items:center;gap:12px;padding:12px 16px;border:1.5px solid #E2E8F0;border-radius:12px;text-decoration:none;color:#0D3B8E;font-weight:600;'>
-                    🎯 HRD Korea — Vocational Training Programs
-                </a>
-                <a href="https://www.hi.go.kr" target="_blank" style='display:flex;align-items:center;gap:12px;padding:12px 16px;border:1.5px solid #E2E8F0;border-radius:12px;text-decoration:none;color:#0D3B8E;font-weight:600;'>
-                    📋 HiKorea — Foreigner Employment Guide
-                </a>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        elif step > len(questions):
+            if st.session_state.iv_result is None:
+                with st.spinner(t("iv_feedback")):
+                    qa_text = "\n".join(
+                        f"Q{i+1}: {x['q']}\nA{i+1}: {x['a']}"
+                        for i, x in enumerate(st.session_state.interview_qa))
+                    prompt = (
+                        f"You are an interview coach for the Korean job market. The candidate applied for "
+                        f"'{role or 'a role'}'. Evaluate their mock interview answers. Return ONLY valid JSON "
+                        "with keys: overall (0-100 int), confidence (0-100 int), cultural_fit (0-100 int), "
+                        "strengths (list of 3-4 strings), improvements (list of 3-4 strings), "
+                        "encouragement (one warm sentence).\n\n" + qa_text
+                    )
+                    raw = llm_complete(prompt)
+                    res = parse_json_block(raw) if raw else None
+                    if not res:
+                        res = {
+                            "overall": 78, "confidence": 74, "cultural_fit": 81,
+                            "strengths": [
+                                "Clear motivation for working in Korea.",
+                                "Good structure in your answers (STAR-like).",
+                                "Positive, respectful tone.",
+                            ],
+                            "improvements": [
+                                "Add concrete examples with measurable results.",
+                                "Practice concise answers (60–90 seconds).",
+                                "Research the company's products before interviews.",
+                            ],
+                            "encouragement": "You're on the right track — keep practicing and you'll shine! 🌟",
+                        }
+                        if not AI_READY:
+                            st.info("Showing sample feedback (AI not configured).")
+                    st.session_state.iv_result = res
 
-# ==========================================
-# JOB PAGE
-# ==========================================
+            res = st.session_state.iv_result
+            m1, m2, m3 = st.columns(3)
+            m1.markdown(f'<div class="metric-box"><div class="mv">{res.get("overall","—")}</div>'
+                        f'<div class="ml">{t("iv_overall")}</div></div>', unsafe_allow_html=True)
+            m2.markdown(f'<div class="metric-box"><div class="mv">{res.get("confidence","—")}</div>'
+                        f'<div class="ml">{t("iv_confidence")}</div></div>', unsafe_allow_html=True)
+            m3.markdown(f'<div class="metric-box"><div class="mv">{res.get("cultural_fit","—")}</div>'
+                        f'<div class="ml">{t("iv_fit")}</div></div>', unsafe_allow_html=True)
+            st.write("")
+            c1, c2 = st.columns(2)
+            with c1:
+                items = "".join(f'<div class="check-item"><span class="ck" style="color:var(--emerald);">✓</span>{s}</div>'
+                                for s in res.get("strengths", []))
+                st.markdown(f'<div class="upk-card"><h3 style="color:#00966f;">💪 {t("iv_strengths")}</h3>{items}</div>',
+                            unsafe_allow_html=True)
+            with c2:
+                items = "".join(f'<div class="check-item"><span class="ck" style="color:var(--orange);">▲</span>{s}</div>'
+                                for s in res.get("improvements", []))
+                st.markdown(f'<div class="upk-card"><h3 style="color:#d94e1f;">🔧 {t("iv_improve")}</h3>{items}</div>',
+                            unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="upk-card" style="background:#E6FBF4;border-color:#b8f0df;margin-top:14px;">'
+                f'<h3>🌟</h3><p style="font-size:16px;color:#00795b;">{res.get("encouragement","")}</p></div>',
+                unsafe_allow_html=True,
+            )
+            if st.button(t("iv_again"), key="iv_again_btn", use_container_width=True):
+                st.session_state.interview_step = 0
+                st.session_state.interview_qa = []
+                st.session_state.iv_result = None
+                st.rerun()
+
+    # ───────────── TAB 3: RESOURCES ─────────────
+    with tabs[2]:
+        section_header(t("career_res"), "Tools, culture tips and salary guidance")
+        rc1, rc2 = st.columns(2)
+        with rc1:
+            _link_card("🧰 Career Tools", [
+                ("Wanted — Tech Jobs", "https://www.wanted.co.kr"),
+                ("LinkedIn Korea", "https://www.linkedin.com"),
+                ("Rocketpunch — Startups", "https://www.rocketpunch.com"),
+                ("Korean Resume Templates", "https://www.saramin.co.kr"),
+                ("Work24 Career Services", "https://www.work.go.kr"),
+            ])
+        with rc2:
+            st.markdown(
+                """
+                <div class="upk-card"><h3>🏢 Korean Work Culture Tips</h3>
+                <p>• <b>Hierarchy (직급):</b> Respect seniority and use formal titles.<br>
+                • <b>Nunchi (눈치):</b> Read the room and social cues.<br>
+                • <b>Teamwork:</b> Group harmony is valued over individual spotlight.<br>
+                • <b>Punctuality:</b> Always arrive early; lateness is frowned upon.<br>
+                • <b>After-work (회식):</b> Team dinners help build relationships.</p></div>
+                """,
+                unsafe_allow_html=True,
+            )
+        divider()
+        st.markdown(
+            """
+            <div class="upk-card"><h3>💵 Salary Negotiation Guide</h3>
+            <p>• Research market rates on Wanted, JobPlanet and Blind.<br>
+            • Entry-level office roles often start around 30–40M KRW/year.<br>
+            • Negotiate total package: base, bonus (성과급), severance (퇴직금), housing.<br>
+            • For E-7 visas, salary must meet the legal minimum threshold.<br>
+            • Be polite and data-driven — aggressive negotiation is uncommon.</p></div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 13. JOB PAGE
+# ════════════════════════════════════════════════════════════════════════════
+JOB_ICONS = ["💻", "📈", "🎨", "🔬", "🏭", "📊", "🩺", "🌐", "📱", "🛠️"]
+
+
+def _job_field(j, *keys, default="—"):
+    for k in keys:
+        v = j.get(k)
+        if v:
+            return v
+    return default
+
+
 def page_job():
-    st.markdown(f'<div class="sec-header"><div class="sec-title">💼 {t("job")}</div><div class="sec-sub">{t("job_sub")}</div></div>', unsafe_allow_html=True)
-    tab1, tab2, tab3 = st.tabs([f"📋 {t('job_board')}", f"⭐ {t('my_matches')}", "🔗 Portals"])
+    section_header(f"💼 {t('nav_job')}", t("feat_job_d"))
+    tabs = st.tabs([t("job_board"), t("job_matches"), t("job_portals_tab")])
 
-    with tab1:
-        st.markdown('<div class="content-pad">', unsafe_allow_html=True)
-        c1, c2 = st.columns([2, 1])
-        with c1: search_job = st.text_input(t('search'), placeholder="Developer, Marketing, Designer...")
-        with c2: visa_filter = st.selectbox(t('filter_visa'), ["All", "E-7", "F-2", "D-10", "F-5", "H-2"])
+    jobs = load_jobs()
 
-        # Load from Supabase
-        db_jobs = load_jobs()
-        jobs = []
-        for j in db_jobs:
-            jobs.append({
-                "company": j.get("company", ""),
-                "role": j.get("role", ""),
-                "visa": j.get("visa_type", "E-7"),
-                "salary": j.get("salary", ""),
-                "match": j.get("match_score", 80),
-                "icon": j.get("icon", "💼"),
-                "location": j.get("location", "Seoul"),
-                "summary": j.get("ai_summary", ""),
-                "apply_url": j.get("apply_url", "#"),
-            })
+    # ───────────── TAB 1: JOB BOARD ─────────────
+    with tabs[0]:
+        f1, f2 = st.columns([2, 1])
+        with f1:
+            search = st.text_input(t("search"), placeholder=t("job_search_ph"), key="job_search")
+        with f2:
+            visa_types = sorted({_job_field(j, "visa_type", default="") for j in jobs if j.get("visa_type")})
+            visa_filter = st.selectbox(t("job_visa_filter"), [t("all")] + visa_types, key="job_visa")
+
+        filtered = []
+        for j in jobs:
+            role = _job_field(j, "role", "title", default="")
+            company = _job_field(j, "company", default="")
+            if search and search.lower() not in (role + " " + company).lower():
+                continue
+            if visa_filter != t("all") and _job_field(j, "visa_type", default="") != visa_filter:
+                continue
+            filtered.append(j)
+
         if not jobs:
-            jobs = [{"company": "Samsung", "role": "Engineer", "visa": "E-7", "salary": "50M KRW", "match": 90, "icon": "💻", "location": "Seoul", "summary": "Add jobs via Supabase admin", "apply_url": "#"}]
-
-        for job in jobs:
-            if search_job and search_job.lower() not in job["role"].lower() and search_job.lower() not in job["company"].lower(): continue
-            if visa_filter != "All" and job["visa"] != visa_filter: continue
-            st.markdown(f"""
-            <div class="job-card">
-                <div class="job-logo">{job['icon']}</div>
-                <div style='flex:1;'>
-                    <div style='display:flex;justify-content:space-between;align-items:flex-start;'>
-                        <div>
-                            <h3 style='color:#0D3B8E;font-size:1.1rem;margin-bottom:4px;'>{job['role']}</h3>
-                            <p style='color:#475569;font-size:0.9rem;'>{job['company']} · 📍 {job['location']}</p>
-                        </div>
-                        <span class="match-badge">MATCH {job['match']}%</span>
-                    </div>
-                    <div style='margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;'>
-                        <span class="tag tag-blue">💰 {job['salary']}</span>
-                        <span class="tag tag-green">Visa: {job['visa']}</span>
-                    </div>
-                    <p style='color:#64748B;font-size:0.85rem;margin-top:8px;'>🤖 {t('ai_summary')}: {job['summary']}</p>
-                </div>
-            </div>""", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with tab2:
-        st.markdown('<div class="content-pad">', unsafe_allow_html=True)
-        st.markdown(f"""
-        <div class="g-card">
-            <h3>⭐ {t('match_cv')}</h3>
-            <p>Upload your CV and let AI find the best matching jobs from our database.</p>
-        </div>""", unsafe_allow_html=True)
-        st.file_uploader(t('upload_cv'), type=["pdf", "docx"], key="job_cv")
-        if st.button(t('submit'), key="match_btn"):
-            st.success("✅ Found 12 matching positions based on your profile!")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with tab3:
-        st.markdown('<div class="content-pad">', unsafe_allow_html=True)
-        st.markdown("""
-        <div class="portals-row" style='justify-content:flex-start;gap:16px;'>
-            <a href="https://www.wanted.co.kr" target="_blank" class="portal-chip">🔥 Wanted</a>
-            <a href="https://www.saramin.co.kr" target="_blank" class="portal-chip">💼 Saramin</a>
-            <a href="https://www.jobkorea.co.kr" target="_blank" class="portal-chip">🏢 JobKorea</a>
-            <a href="https://www.work24.go.kr" target="_blank" class="portal-chip">🏛️ Work24</a>
-            <a href="https://www.kwork.or.kr" target="_blank" class="portal-chip">🌏 K-Work</a>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# ==========================================
-# TOPIK PAGE
-# ==========================================
-def page_topik():
-    st.markdown(f'<div class="sec-header"><div class="sec-title">📝 {t("topik")}</div><div class="sec-sub">{t("topik_sub")}</div></div>', unsafe_allow_html=True)
-    tab1, tab2, tab3, tab4 = st.tabs([f"📅 {t('schedule')}", f"✍️ {t('register')}", f"📊 {t('levels')}", f"💡 {t('study_tips')}"])
-
-    with tab1:
-        st.markdown('<div class="content-pad">', unsafe_allow_html=True)
-        # Load from Supabase
-        topik_data = load_topik()
-        if topik_data:
-            rows_html = ""
-            for row in topik_data:
-                tag_class = "tag-green" if row.get("test_type") == "IBT" else "tag-blue"
-                rows_html += f"<tr><td>{row.get('session','')}</td><td>{row.get('test_date','')}</td><td>{row.get('registration','')}</td><td>{row.get('results','')}</td><td><span class='tag {tag_class}'>{row.get('test_type','PBT')}</span></td></tr>"
-            st.markdown(f"""
-            <table class="topik-table">
-                <thead><tr><th>Session</th><th>Test Date</th><th>Registration</th><th>Results</th><th>Type</th></tr></thead>
-                <tbody>{rows_html}</tbody>
-            </table>
-            <p style='margin-top:12px;color:#94A3B8;font-size:0.85rem;'>Source: topik.go.kr (official NIIED schedule)</p>
-            """, unsafe_allow_html=True)
+            st.info(t("empty"))
+        elif not filtered:
+            st.warning("No jobs match your search. Try different keywords.")
         else:
-            st.info("TOPIK schedule loading... Add data via Supabase.")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with tab2:
-        st.markdown('<div class="content-pad">', unsafe_allow_html=True)
-        st.markdown(f"""
-        <div class="g-card">
-            <h3>✍️ How to Register for TOPIK</h3>
-            <div style='display:flex;flex-direction:column;gap:12px;margin-top:16px;'>
-                <div style='display:flex;gap:16px;'>
-                    <div style='width:32px;height:32px;border-radius:50%;background:#0D3B8E;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;'>1</div>
-                    <div><b>Visit topik.go.kr</b><br><span style='color:#64748B;font-size:0.9rem;'>Go to the official TOPIK website</span></div>
-                </div>
-                <div style='display:flex;gap:16px;'>
-                    <div style='width:32px;height:32px;border-radius:50%;background:#0D3B8E;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;'>2</div>
-                    <div><b>Create Account</b><br><span style='color:#64748B;font-size:0.9rem;'>Register with your passport number</span></div>
-                </div>
-                <div style='display:flex;gap:16px;'>
-                    <div style='width:32px;height:32px;border-radius:50%;background:#0D3B8E;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;'>3</div>
-                    <div><b>Select Test & Venue</b><br><span style='color:#64748B;font-size:0.9rem;'>Choose TOPIK I (Lv.1-2) or TOPIK II (Lv.3-6)</span></div>
-                </div>
-                <div style='display:flex;gap:16px;'>
-                    <div style='width:32px;height:32px;border-radius:50%;background:#00C897;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;'>4</div>
-                    <div><b>Pay Fee & Confirm</b><br><span style='color:#64748B;font-size:0.9rem;'>PBT: ₩40,000 (TOPIK I) / ₩55,000 (TOPIK II)</span></div>
-                </div>
-            </div>
-            <a href="https://www.topik.go.kr" target="_blank" style='display:inline-block;margin-top:20px;background:#0D3B8E;color:white;padding:12px 28px;border-radius:50px;text-decoration:none;font-weight:600;'>Register at topik.go.kr →</a>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with tab3:
-        st.markdown('<div class="content-pad">', unsafe_allow_html=True)
-        levels = [
-            ("Level 1", "80–139", "Basic survival Korean, simple sentences", "tag-blue"),
-            ("Level 2", "140–200", "Daily life communication, basic social topics", "tag-blue"),
-            ("Level 3", "120–149", "Basic social and professional topics", "tag-green"),
-            ("Level 4", "150–189", "Broad social and professional use", "tag-green"),
-            ("Level 5", "190–229", "Near-native professional communication", "tag-orange"),
-            ("Level 6", "230–300", "Native-level proficiency in all settings", "tag-orange"),
-        ]
-        for lv, score, desc, tag in levels:
-            st.markdown(f"""
-            <div class="g-card" style='padding:16px 24px;'>
-                <div style='display:flex;justify-content:space-between;align-items:center;'>
-                    <div>
-                        <span class="tag {tag}">{lv}</span>
-                        <span style='color:#0D3B8E;font-weight:700;margin-left:8px;'>{score} points</span>
-                    </div>
-                    <p style='color:#64748B;font-size:0.9rem;max-width:60%;text-align:right;'>{desc}</p>
-                </div>
-            </div>""", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with tab4:
-        st.markdown('<div class="content-pad">', unsafe_allow_html=True)
-        st.markdown("""
-        <div class="g-card">
-            <h3>💡 Top Study Resources</h3>
-            <div style='display:flex;flex-direction:column;gap:10px;margin-top:12px;'>
-                <a href="https://www.topik.go.kr" target="_blank" style='display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #E2E8F0;border-radius:12px;text-decoration:none;color:#0D3B8E;font-weight:600;'>
-                    📄 Official Past Papers — topik.go.kr
-                </a>
-                <a href="https://www.topikguide.com" target="_blank" style='display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #E2E8F0;border-radius:12px;text-decoration:none;color:#0D3B8E;font-weight:600;'>
-                    📖 TOPIK Guide — Free study materials
-                </a>
-                <a href="https://news.naver.com" target="_blank" style='display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid #E2E8F0;border-radius:12px;text-decoration:none;color:#0D3B8E;font-weight:600;'>
-                    📰 Naver News — Reading practice
-                </a>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# ==========================================
-# VISA PAGE
-# ==========================================
-def page_visa():
-    st.markdown(f'<div class="sec-header"><div class="sec-title">🛂 {t("visa")}</div><div class="sec-sub">{t("visa_sub")}</div></div>', unsafe_allow_html=True)
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎓 D-2", "📚 D-4", "💼 E-7", "🏠 F-2", "🌟 F-5"])
-
-    # Load visa data from Supabase
-    db_visa = load_visa()
-    visa_codes = ["D-2", "D-4", "E-7", "F-2", "F-5"]
-    visa_map = {v.get("visa_code"): v for v in db_visa}
-
-    for tab_obj, code in zip([tab1, tab2, tab3, tab4, tab5], visa_codes):
-        with tab_obj:
-            st.markdown('<div class="content-pad">', unsafe_allow_html=True)
-            data = visa_map.get(code)
-            if data:
-                reqs = [r.strip() for r in data.get("requirements", "").split("|") if r.strip()]
-                reqs_html = "".join([f'<div class="visa-req-item"><div class="visa-req-icon">✓</div><div style="color:#475569;">{r}</div></div>' for r in reqs])
-                st.markdown(f"""
-                <div class="visa-card">
-                    <div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;'>
-                        <div>
-                            <div style='font-size:3rem;'>{data.get("icon","🛂")}</div>
-                            <h2 style='color:#0D3B8E;margin-top:8px;'>{data.get("title","")}</h2>
-                            <p style='color:#64748B;'>{data.get("for_who","")}</p>
+            st.caption(f"{len(filtered)} / {len(jobs)} {t('nav_job').lower()}")
+            for idx, j in enumerate(filtered):
+                role = _job_field(j, "role", "title", default="Role")
+                company = _job_field(j, "company", default="Company")
+                location = _job_field(j, "location", default="Korea")
+                salary = _job_field(j, "salary", default="Competitive")
+                visa = _job_field(j, "visa_type", default="—")
+                summary = localized(j, "summary") or _job_field(j, "summary", "ai_summary", default="")
+                match = _job_field(j, "match_score", "match", default="—")
+                apply_url = _job_field(j, "apply_url", "url", default="https://www.wanted.co.kr")
+                icon = JOB_ICONS[idx % len(JOB_ICONS)]
+                st.markdown(
+                    f"""
+                    <div class="job-card">
+                        <div class="job-icon">{icon}</div>
+                        <div class="job-mid">
+                            <h4>{role}</h4>
+                            <div class="job-meta">🏢 {company} &nbsp;•&nbsp; 📍 {location}</div>
+                            <span class="tag tag-green">💰 {salary}</span>
+                            <span class="tag tag-navy">🛂 {visa}</span>
+                            <div class="job-ai">🤖 {summary}</div>
                         </div>
-                        <div style='text-align:right;'>
-                            <div style='background:#F0F4FF;padding:12px 20px;border-radius:12px;'>
-                                <div style='font-size:0.8rem;color:#94A3B8;'>Fee</div>
-                                <div style='font-weight:700;color:#0D3B8E;'>{data.get("fee","")}</div>
-                            </div>
-                            <div style='background:#ECFDF5;padding:12px 20px;border-radius:12px;margin-top:8px;'>
-                                <div style='font-size:0.8rem;color:#94A3B8;'>Duration</div>
-                                <div style='font-weight:700;color:#065F46;'>{data.get("duration","")}</div>
-                            </div>
+                        <div style="text-align:center;">
+                            <div class="match-badge">{match}%<small>{t('job_match')}</small></div>
+                            <a class="link-row" style="text-align:center;background:#EEF2FF;margin-top:8px;"
+                               href="{apply_url}" target="_blank">{t('job_apply')} →</a>
                         </div>
                     </div>
-                    <h3 style='color:#0D3B8E;margin-bottom:12px;'>{t("requirements")}</h3>
-                    {reqs_html}
-                    <a href="{data.get("hikorea_url","https://www.hikorea.go.kr")}" target="_blank" style='display:inline-block;margin-top:20px;background:linear-gradient(135deg,#0D3B8E,#00C897);color:white;padding:12px 28px;border-radius:50px;text-decoration:none;font-weight:600;'>Apply on HiKorea →</a>
-                </div>
-                """, unsafe_allow_html=True)
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+    # ───────────── TAB 2: MY MATCHES ─────────────
+    with tabs[1]:
+        section_header(t("job_matches"), t("job_upload_cv"))
+        st.markdown(
+            f'<div class="upk-card"><h3>🎯 {t("job_upload_cv")}</h3>'
+            f'<p>Our AI compares your skills with open roles and ranks the best fits.</p></div>',
+            unsafe_allow_html=True,
+        )
+        cv_file = st.file_uploader(t("cv_upload"), type=["pdf", "docx", "txt"], key="match_cv")
+        if st.button(t("job_find"), key="match_btn", use_container_width=True):
+            if not cv_file:
+                st.warning(t("cv_upload"))
+            elif not jobs:
+                st.info(t("empty"))
             else:
-                st.info(f"Add {code} visa info via Supabase admin panel.")
-            st.markdown('</div>', unsafe_allow_html=True)
+                with st.spinner(t("loading")):
+                    text = extract_pdf_text(cv_file)
+                    job_titles = [
+                        f"{_job_field(j, 'role', 'title')} @ {_job_field(j, 'company')} "
+                        f"({_job_field(j, 'visa_type', default='—')})"
+                        for j in jobs[:20]
+                    ]
+                    prompt = (
+                        "Given this candidate CV and the list of jobs, return ONLY valid JSON with key "
+                        "'matches' = list of up to 5 objects {title, score (0-100), reason (short)}. "
+                        "Pick the best fits.\n\nCV:\n" + text[:4000] + "\n\nJOBS:\n" + "\n".join(job_titles)
+                    )
+                    raw = llm_complete(prompt)
+                    parsed = parse_json_block(raw) if raw else None
+                    if parsed and isinstance(parsed.get("matches"), list):
+                        st.session_state.job_match_result = parsed["matches"]
+                    else:
+                        # Heuristic fallback using existing match scores
+                        st.session_state.job_match_result = [
+                            {"title": f"{_job_field(j, 'role', 'title')} @ {_job_field(j, 'company')}",
+                             "score": _job_field(j, "match_score", "match", default=70),
+                             "reason": "Strong overlap with your profile."}
+                            for j in sorted(jobs, key=lambda x: x.get("match_score", 0), reverse=True)[:5]
+                        ]
+                        if not AI_READY:
+                            st.info("Showing heuristic matches (AI not configured).")
 
-# ==========================================
-# FLOATING CHATBOT
-# ==========================================
+        matches = st.session_state.job_match_result
+        if matches:
+            st.write("")
+            for m in matches:
+                st.markdown(
+                    f"""
+                    <div class="job-card">
+                        <div class="job-icon">⭐</div>
+                        <div class="job-mid">
+                            <h4>{m.get('title','Role')}</h4>
+                            <div class="job-ai">🤖 {m.get('reason','')}</div>
+                        </div>
+                        <div class="match-badge">{m.get('score','—')}%<small>{t('job_match')}</small></div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+    # ───────────── TAB 3: PORTALS ─────────────
+    with tabs[2]:
+        section_header(t("job_portals_tab"), t("job_portals"))
+        cols = st.columns(3)
+        for i, (name, url, desc) in enumerate(JOB_PORTALS):
+            with cols[i % 3]:
+                st.markdown(
+                    f'<a class="portal-card" href="{url}" target="_blank" style="display:block;">'
+                    f'<h4>🔗 {name}</h4><p>{desc}</p>'
+                    f'<span class="tag tag-navy">{t("visit")} →</span></a>',
+                    unsafe_allow_html=True,
+                )
+                st.write("")
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 14. TOPIK PAGE
+# ════════════════════════════════════════════════════════════════════════════
+def _gf(row, *keys, default="—"):
+    for k in keys:
+        v = row.get(k)
+        if v not in (None, ""):
+            return v
+    return default
+
+
+def page_topik():
+    section_header(f"📊 {t('nav_topik')}", "Test of Proficiency in Korean — your full guide")
+    tabs = st.tabs([
+        t("topik_schedule"), t("topik_register"), t("topik_levels"),
+        t("topik_tips"), t("topik_centers"),
+    ])
+
+    # ───────────── TAB 1: SCHEDULE ─────────────
+    with tabs[0]:
+        section_header(t("topik_schedule"), "Official test rounds and key dates")
+        rows = load_topik()
+        if not rows:
+            st.info(t("empty"))
+        else:
+            body = ""
+            for r in rows:
+                ttype = str(_gf(r, "type", "test_type", default="PBT")).upper()
+                if "IBT" in ttype:
+                    tag = '<span class="tag tag-green">IBT</span>'
+                elif "SPEAK" in ttype:
+                    tag = '<span class="tag tag-orange">Speaking</span>'
+                else:
+                    tag = '<span class="tag tag-navy">PBT</span>'
+                body += (
+                    f"<tr><td>{_gf(r, 'session', 'round')}</td>"
+                    f"<td>{_gf(r, 'test_date')}</td>"
+                    f"<td>{_gf(r, 'registration', 'reg_period')}</td>"
+                    f"<td>{_gf(r, 'results', 'result_date')}</td>"
+                    f"<td>{tag}</td></tr>"
+                )
+            st.markdown(
+                f"""
+                <table class="upk-table">
+                    <tr><th>Session</th><th>Test Date</th><th>Registration</th><th>Results</th><th>Type</th></tr>
+                    {body}
+                </table>
+                """,
+                unsafe_allow_html=True,
+            )
+        st.markdown('<div class="glass-note" style="margin-top:14px;">📌 Source: topik.go.kr official schedule. '
+                    'Always confirm dates on the official website.</div>', unsafe_allow_html=True)
+
+    # ───────────── TAB 2: REGISTER ─────────────
+    with tabs[1]:
+        section_header(t("topik_register"), "Step-by-step registration guide")
+        steps = [
+            ("Visit topik.go.kr", "Go to the official TOPIK website and switch to your language."),
+            ("Create an account", "Register using your passport number and personal details."),
+            ("Select round & level", "Choose the test round and either TOPIK I or TOPIK II."),
+            ("Choose test location", "Pick a test center near you (seats fill quickly!)."),
+            ("Pay the registration fee", "Pay online with a card or supported method."),
+            ("Download admission ticket", "Print or save your admission ticket (수험표)."),
+            ("Bring passport + ticket", "On exam day, bring your passport and admission ticket."),
+        ]
+        for i, (title, desc) in enumerate(steps, 1):
+            st.markdown(
+                f'<div class="upk-card" style="margin-bottom:10px;display:flex;gap:16px;align-items:center;">'
+                f'<div class="flow-num" style="margin:0;flex-shrink:0;">{i}</div>'
+                f'<div><h4 style="margin:0 0 4px 0;">{title}</h4>'
+                f'<p style="margin:0;color:var(--muted);">{desc}</p></div></div>',
+                unsafe_allow_html=True,
+            )
+        divider()
+        st.markdown(
+            f"""
+            <div class="upk-card"><h3>💳 {t('topik_fee')}</h3>
+            <table class="upk-table">
+                <tr><th>Format</th><th>TOPIK I</th><th>TOPIK II</th></tr>
+                <tr><td>PBT (Paper)</td><td>40,000 KRW</td><td>55,000 KRW</td></tr>
+                <tr><td>IBT (Internet)</td><td>70,000 KRW</td><td>95,000 KRW</td></tr>
+            </table></div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown('<a class="link-row" style="text-align:center;background:#EEF2FF;margin-top:12px;" '
+                    f'href="https://www.topik.go.kr" target="_blank">{t("topik_reg_btn")}</a>',
+                    unsafe_allow_html=True)
+
+    # ───────────── TAB 3: LEVELS ─────────────
+    with tabs[2]:
+        section_header(t("topik_levels"), "Understand the six TOPIK levels")
+        infos = load_topik_info()
+        if not infos:
+            st.info(t("empty"))
+        else:
+            cols = st.columns(2)
+            for i, lv in enumerate(infos):
+                level_name = _gf(lv, "level", "level_name", default="TOPIK")
+                score = _gf(lv, "score_range", "score", default="—")
+                desc = localized(lv, "description") or _gf(lv, "description", "description_en", default="")
+                is_topik2 = "II" in str(level_name) or any(x in str(level_name) for x in ["3", "4", "5", "6"])
+                grad = ("linear-gradient(135deg,#00C897,#FF6B35)" if is_topik2
+                        else "linear-gradient(135deg,#0D3B8E,#1a56c4)")
+                with cols[i % 2]:
+                    st.markdown(
+                        f'<div class="upk-card" style="border-top:5px solid transparent;'
+                        f'background:linear-gradient(#fff,#fff) padding-box,{grad} border-box;'
+                        f'border:2px solid transparent;">'
+                        f'<span class="tag" style="background:{grad};color:#fff;">{level_name}</span>'
+                        f'<h3 style="margin-top:10px;">📊 {score}</h3>'
+                        f'<p>{desc}</p></div>',
+                        unsafe_allow_html=True,
+                    )
+                    st.write("")
+
+        divider()
+        section_header("Test Format")
+        struct = load_topik_structure()
+        if not struct:
+            st.info(t("empty"))
+        else:
+            body = "".join(
+                f"<tr><td>{_gf(s, 'type', 'test_type')}</td><td>{_gf(s, 'section')}</td>"
+                f"<td>{_gf(s, 'duration')}</td><td>{_gf(s, 'questions')}</td>"
+                f"<td>{_gf(s, 'max_score')}</td></tr>"
+                for s in struct
+            )
+            st.markdown(
+                f'<table class="upk-table"><tr><th>Type</th><th>Section</th><th>Duration</th>'
+                f'<th>Questions</th><th>Max Score</th></tr>{body}</table>',
+                unsafe_allow_html=True,
+            )
+
+        divider()
+        section_header("FAQ")
+        faqs = load_topik_faq()
+        if not faqs:
+            st.info(t("empty"))
+        else:
+            for f in faqs:
+                q = localized(f, "question") or _gf(f, "question", "question_en")
+                a = localized(f, "answer") or _gf(f, "answer", "answer_en")
+                with st.expander(f"❓ {q}"):
+                    st.write(a)
+
+    # ───────────── TAB 4: STUDY TIPS ─────────────
+    with tabs[3]:
+        section_header(t("topik_tips"), "Resources and a study timeline")
+        rc1, rc2 = st.columns(2)
+        with rc1:
+            _link_card("📚 Free Resources", [
+                ("Free Past Papers (TOPIK Guide)", "https://www.topikguide.com"),
+                ("Official TOPIK Samples", "https://www.topik.go.kr"),
+                ("Korean News (Easy)", "https://www.kbs.co.kr"),
+                ("Naver Korean Dictionary", "https://dict.naver.com"),
+            ])
+        with rc2:
+            _link_card("📱 Mobile Apps", [
+                ("TOPIK ONE — Practice", "https://play.google.com"),
+                ("Memrise — Vocabulary", "https://www.memrise.com"),
+                ("Anki — Flashcards", "https://apps.ankiweb.net"),
+                ("HelloTalk — Language Exchange", "https://www.hellotalk.com"),
+            ])
+        divider()
+        st.markdown(
+            """
+            <div class="upk-card"><h3>🗓️ Recommended Study Timeline</h3>
+            <p>• <b>Months 1–2:</b> Master Hangul, basic grammar & 800 core words (→ TOPIK I).<br>
+            • <b>Months 3–4:</b> Intermediate grammar, reading speed & 1,500 words.<br>
+            • <b>Months 5–6:</b> Past papers, listening drills & timed mock tests.<br>
+            • <b>Final 2 weeks:</b> Full mock exams under timed conditions, review weak areas.<br>
+            • <b>Daily habit:</b> 30 minutes of Korean news + 20 new words.</p></div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # ───────────── TAB 5: TEST CENTERS ─────────────
+    with tabs[4]:
+        section_header(t("topik_centers"), "Find a test center near you")
+        centers = load_topik_centers()
+        city_q = st.text_input(t("search"), placeholder=t("tc_search"), key="tc_search")
+        if not centers:
+            st.info(t("empty"))
+        else:
+            shown = [
+                c for c in centers
+                if not city_q or city_q.lower() in str(_gf(c, "city", "city_en", default="")).lower()
+            ]
+            if not shown:
+                st.warning("No centers found for that city.")
+            cols = st.columns(2)
+            for i, c in enumerate(shown):
+                city = _gf(c, "city_en", "city")
+                center = _gf(c, "test_center_en", "test_center", "center")
+                address = _gf(c, "address")
+                contact = _gf(c, "contact", "phone")
+                with cols[i % 2]:
+                    st.markdown(
+                        f'<div class="upk-card"><span class="tag tag-navy">📍 {city}</span>'
+                        f'<h4 style="margin:10px 0 6px 0;">{center}</h4>'
+                        f'<p>🏠 {address}<br>☎️ {contact}</p></div>',
+                        unsafe_allow_html=True,
+                    )
+                    st.write("")
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 15. VISA PAGE
+# ════════════════════════════════════════════════════════════════════════════
+VISA_META = {
+    "D-2": ("🎓", "Student Visa", "Degree-seeking students at Korean universities"),
+    "D-4": ("📖", "Language Training Visa", "Korean language program students"),
+    "E-7": ("💼", "Specialized Work Visa", "Skilled professionals with a job offer"),
+    "F-2": ("🏡", "Residence Visa", "Long-term residents (points-based)"),
+    "F-5": ("⭐", "Permanent Residency", "Permanent residents of Korea"),
+}
+VISA_ORDER = ["D-2", "D-4", "E-7", "F-2", "F-5"]
+
+
+def _visa_lookup(rows, code):
+    for r in rows:
+        if str(r.get("visa_code", "")).upper().replace(" ", "") == code.replace(" ", ""):
+            return r
+    return {}
+
+
+def _split_list(text, sep="|"):
+    if not text:
+        return []
+    return [x.strip() for x in str(text).split(sep) if x.strip()]
+
+
+def page_visa():
+    section_header(f"🛂 {t('nav_visa')}", t("feat_visa_d"))
+    rows = load_visa()
+    tabs = st.tabs(VISA_ORDER)
+
+    for i, code in enumerate(VISA_ORDER):
+        with tabs[i]:
+            icon, title, for_who = VISA_META[code]
+            row = _visa_lookup(rows, code)
+
+            # Fields with sensible defaults so the page is useful even pre-data.
+            db_for = localized(row, "for_who") or row.get("for_who") or for_who
+            fee = row.get("fee", "60,000 KRW (single)")
+            duration = row.get("duration", "1–2 years (renewable)")
+            proc = row.get("processing_time", "2–4 weeks")
+            requirements = _split_list(row.get("requirements")) or [
+                "Valid passport (6+ months)",
+                "Certificate of Admission / employment contract",
+                "Proof of financial means",
+                "Completed visa application form",
+            ]
+            documents = _split_list(row.get("documents")) or [
+                "Passport & passport photo",
+                "Application form",
+                "Certificate of Admission (for students)",
+                "Bank statement / financial proof",
+                "Health & background documents (if required)",
+            ]
+
+            req_html = "".join(
+                f'<div class="check-item"><span class="ck">✓</span>{r}</div>' for r in requirements)
+            doc_html = "".join(
+                f'<div class="check-item"><span class="ck">📄</span>{d}</div>' for d in documents)
+
+            st.markdown(
+                f"""
+                <div class="visa-card">
+                    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+                        <div class="visa-head">
+                            <div class="vi">{icon}</div>
+                            <div><h2 style="margin:0;">{code} — {title}</h2>
+                            <p style="color:var(--muted);margin:4px 0 0 0;">👤 {db_for}</p></div>
+                        </div>
+                        <div style="display:flex;gap:12px;">
+                            <div class="info-pill"><div class="ip-l">{t('visa_fee')}</div>
+                                <div class="ip-v">{fee}</div></div>
+                            <div class="info-pill"><div class="ip-l">{t('visa_dur')}</div>
+                                <div class="ip-v">{duration}</div></div>
+                        </div>
+                    </div>
+                    <hr class="soft-divider"/>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+                        <div><h3>✅ {t('visa_req')}</h3>{req_html}</div>
+                        <div><h3>📋 {t('visa_docs')}</h3>{doc_html}</div>
+                    </div>
+                    <hr class="soft-divider"/>
+                    <div class="glass-note">⏱️ <b>{t('visa_proc')}:</b> {proc}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                '<a class="link-row" style="text-align:center;background:#0D3B8E;color:#fff;'
+                'margin-top:14px;font-weight:700;" href="https://www.hikorea.go.kr" target="_blank">'
+                f'{t("visa_apply")}</a>',
+                unsafe_allow_html=True,
+            )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 16. LIFE PAGE
+# ════════════════════════════════════════════════════════════════════════════
+def page_life():
+    section_header(f"🏠 {t('nav_life')}", "Everything you need for daily life in Korea")
+    tabs = st.tabs([
+        t("life_housing"), t("life_transport"), t("life_health"),
+        t("life_banking"), t("life_safety"),
+    ])
+
+    # ───────────── HOUSING ─────────────
+    with tabs[0]:
+        section_header(f"🏠 {t('life_housing')}", "Find the right place to live")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.markdown(
+                """
+                <div class="upk-card"><h3>🏫 University Dormitory</h3>
+                <span class="tag tag-green">~300,000–600,000 KRW/mo</span>
+                <p style="margin-top:10px;"><b>Pros:</b> Cheap, on campus, easy to make friends, furnished.<br>
+                <b>Cons:</b> Curfews, roommates, limited privacy, competitive spots.</p></div>
+                """, unsafe_allow_html=True)
+        with c2:
+            st.markdown(
+                """
+                <div class="upk-card"><h3>🚪 One-room (원룸)</h3>
+                <span class="tag tag-navy">~400,000–800,000 KRW/mo</span>
+                <p style="margin-top:10px;"><b>Pros:</b> Privacy, own kitchen & bathroom, flexible.<br>
+                <b>Cons:</b> Deposit (보증금) required, utility bills, contracts in Korean.</p></div>
+                """, unsafe_allow_html=True)
+        with c3:
+            st.markdown(
+                """
+                <div class="upk-card"><h3>🛏️ Goshiwon (고시원)</h3>
+                <span class="tag tag-orange">~300,000–500,000 KRW/mo</span>
+                <p style="margin-top:10px;"><b>Pros:</b> Cheapest, no deposit, short-term friendly.<br>
+                <b>Cons:</b> Very small rooms, shared facilities, thin walls.</p></div>
+                """, unsafe_allow_html=True)
+        divider()
+        st.markdown(
+            """
+            <div class="upk-card"><h3>💡 Housing Tips</h3>
+            <p>• Use apps: <b>Naver Real Estate (네이버 부동산)</b>, <b>Zigbang (직방)</b>, <b>Dabang (다방)</b>.<br>
+            • <b>전세 (Jeonse):</b> Large lump-sum deposit, no monthly rent — returned when you leave.<br>
+            • <b>월세 (Wolse):</b> Smaller deposit + monthly rent — most common for students.<br>
+            • Always verify the landlord and contract; bring a Korean-speaking friend if possible.<br>
+            • Check distance to subway, supermarket and your campus before signing.</p></div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # ───────────── TRANSPORT ─────────────
+    with tabs[1]:
+        section_header(f"🚇 {t('life_transport')}", "Get around Korea like a local")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(
+                """
+                <div class="upk-card"><h3>💳 T-money Card</h3>
+                <p>• Buy at any convenience store (GS25, CU, 7-Eleven) for ~2,500 KRW.<br>
+                • Charge (충전) with cash at stores or station machines.<br>
+                • Tap on entry and exit for subway, bus and even taxis.<br>
+                • Works nationwide — one card for the whole country.</p></div>
+                """, unsafe_allow_html=True)
+            st.markdown(
+                """
+                <div class="upk-card" style="margin-top:14px;"><h3>🚌 Bus Guide</h3>
+                <p>• Blue = main routes, Green = local, Red = express, Yellow = circular.<br>
+                • Tap T-money on entry AND exit to get transfer discounts.<br>
+                • Use <b>Naver Map</b> or <b>Kakao Bus</b> for live arrival times.</p></div>
+                """, unsafe_allow_html=True)
+        with c2:
+            st.markdown(
+                """
+                <div class="upk-card"><h3>🚇 Subway Guide</h3>
+                <p>• Use <b>Kakao Metro</b> or <b>Naver Maps</b> for the fastest routes.<br>
+                • Lines are color-coded and signs are in English too.<br>
+                • Avoid rush hours (08:00–09:00, 18:00–19:00) when possible.</p></div>
+                """, unsafe_allow_html=True)
+            st.markdown(
+                """
+                <div class="upk-card" style="margin-top:14px;"><h3>🚕 Taxi</h3>
+                <p>• Use the <b>Kakao T</b> app to call and pay easily.<br>
+                • Pay with T-money, card or cash.<br>
+                • Base fare ~4,800 KRW in Seoul; late-night surcharge applies.</p></div>
+                """, unsafe_allow_html=True)
+        st.markdown('<div class="glass-note" style="margin-top:14px;">💰 Typical subway/bus fare: '
+                    '<b>~1,400 KRW</b> per ride with a T-money card.</div>', unsafe_allow_html=True)
+
+    # ───────────── HEALTH ─────────────
+    with tabs[2]:
+        section_header(f"🏥 {t('life_health')}", "Stay healthy and insured in Korea")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(
+                """
+                <div class="upk-card"><h3>🩺 National Health Insurance (NHIS)</h3>
+                <p>• <b>Mandatory</b> for international students after 6 months of stay.<br>
+                • Monthly cost: <b>~130,000 KRW</b> for international students.<br>
+                • Covers a large portion of hospital and clinic costs.<br>
+                • Download the <b>건강보험 (NHIS)</b> app to manage your account.</p></div>
+                """, unsafe_allow_html=True)
+        with c2:
+            st.markdown(
+                """
+                <div class="upk-card"><h3>🏨 How to See a Doctor</h3>
+                <p>• Find hospitals/clinics (병원/의원) with <b>Naver Maps</b>.<br>
+                • Bring your <b>ARC card</b> for insurance billing.<br>
+                • Many big hospitals have international clinics with English support.<br>
+                • Pharmacies (약국) are everywhere for prescriptions.</p></div>
+                """, unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div class="upk-card" style="margin-top:14px;"><h3>🚨 Emergency Numbers</h3>
+            <table class="upk-table">
+                <tr><th>Number</th><th>Service</th></tr>
+                <tr><td>119</td><td>Ambulance & Fire</td></tr>
+                <tr><td>112</td><td>Police</td></tr>
+                <tr><td>1339</td><td>Medical Consultation (24/7)</td></tr>
+            </table></div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # ───────────── BANKING ─────────────
+    with tabs[3]:
+        section_header(f"🏦 {t('life_banking')}", "Open an account and manage money")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(
+                """
+                <div class="upk-card"><h3>📋 Required Documents</h3>
+                <div class="check-item"><span class="ck">✓</span>ARC (Alien Registration Card)</div>
+                <div class="check-item"><span class="ck">✓</span>Passport</div>
+                <div class="check-item"><span class="ck">✓</span>University enrollment certificate</div>
+                <div class="check-item"><span class="ck">✓</span>Korean phone number</div></div>
+                """, unsafe_allow_html=True)
+            st.markdown(
+                """
+                <div class="upk-card" style="margin-top:14px;"><h3>🏦 Foreigner-friendly Banks</h3>
+                <p>• <b>KEB Hana Bank</b> — strong foreign-customer support.<br>
+                • <b>IBK</b> (Industrial Bank of Korea).<br>
+                • <b>Woori Bank</b> and <b>Shinhan Bank</b>.</p></div>
+                """, unsafe_allow_html=True)
+        with c2:
+            st.markdown(
+                """
+                <div class="upk-card"><h3>🪪 Steps to Open an Account</h3>
+                <p>1. Visit a branch with your documents.<br>
+                2. Fill out the application (staff often help in English).<br>
+                3. Receive your debit card & bankbook (통장).<br>
+                4. Set up mobile banking with your card & ID.<br>
+                5. Register for online transfers (may need extra verification).</p></div>
+                """, unsafe_allow_html=True)
+            st.markdown(
+                """
+                <div class="upk-card" style="margin-top:14px;"><h3>🌍 Sending Money Abroad</h3>
+                <p>• <b>Wise</b> for low-fee international transfers.<br>
+                • <b>WeChat Pay / Alipay</b> popular for Chinese students.<br>
+                • Banks offer remittance but with higher fees.</p></div>
+                """, unsafe_allow_html=True)
+
+    # ───────────── SAFETY ─────────────
+    with tabs[4]:
+        section_header(f"🛟 {t('life_safety')}", "Stay safe and know who to call")
+        st.markdown(
+            """
+            <div class="upk-card"><h3>📞 Emergency & Support Numbers</h3>
+            <table class="upk-table">
+                <tr><th>Number</th><th>Service</th></tr>
+                <tr><td>119</td><td>Ambulance & Fire</td></tr>
+                <tr><td>112</td><td>Police</td></tr>
+                <tr><td>120</td><td>Seoul City Helpline (multilingual)</td></tr>
+                <tr><td>1330</td><td>Tourism Hotline (24/7, multilingual)</td></tr>
+                <tr><td>1345</td><td>Immigration Contact Center</td></tr>
+                <tr><td>1393</td><td>Mental Health / Suicide Prevention</td></tr>
+            </table></div>
+            """,
+            unsafe_allow_html=True,
+        )
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(
+                """
+                <div class="upk-card" style="margin-top:14px;"><h3>🛡️ Daily Safety Tips</h3>
+                <p>• Korea is very safe, but stay alert late at night.<br>
+                • Keep your ARC and passport copies in a safe place.<br>
+                • Beware of phone/voice phishing (보이스피싱) scams.<br>
+                • Save your address in Korean for taxis and emergencies.</p></div>
+                """, unsafe_allow_html=True)
+        with c2:
+            st.markdown(
+                """
+                <div class="upk-card" style="margin-top:14px;"><h3>📱 Useful Apps & Centers</h3>
+                <p>• <b>Emergency Ready App (안전디딤돌)</b> — disaster alerts in English.<br>
+                • <b>112/119 apps</b> for silent emergency reporting.<br>
+                • Visit your city's <b>Global / Foreigner Support Center</b> for free help.<br>
+                • Seoul Global Center offers free legal & life counseling.</p></div>
+                """, unsafe_allow_html=True)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 17. FLOATING CHATBOT (sidebar)
+# ════════════════════════════════════════════════════════════════════════════
 def floating_chat():
-    t_val = TR[st.session_state.get("lang", "🇺🇸 English")]
-
-    components.html("""
-    <div id="chat-fab" style="
-        position:fixed;bottom:30px;right:30px;width:64px;height:64px;border-radius:50%;
-        background:linear-gradient(135deg,#0D3B8E,#00C897);display:flex;align-items:center;
-        justify-content:center;cursor:pointer;z-index:9999;font-size:28px;
-        box-shadow:0 8px 30px rgba(13,59,142,0.4);animation:pulse 2s ease-in-out infinite;">
-        🤖
-    </div>
-    <style>
-    @keyframes pulse {
-        0%,100%{box-shadow:0 8px 30px rgba(13,59,142,0.4);}
-        50%{box-shadow:0 8px 50px rgba(0,200,151,0.5),0 0 0 12px rgba(13,59,142,0.08);}
-    }
-    </style>
-    <script>
-    document.getElementById('chat-fab').onclick = function() {
-        window.parent.document.querySelectorAll('[data-testid="stSidebar"]').forEach(e => {
-            e.style.display = e.style.display === 'none' ? 'block' : 'none';
-        });
-    };
-    </script>
-    """, height=100)
-
+    t_val = TR.get(st.session_state.get("lang", "🇺🇸 English"), TR["🇺🇸 English"])
     with st.sidebar:
-        st.markdown(f"""
-        <div style='text-align:center;padding:20px 0 10px;'>
-            <div style='font-size:3rem;'>🤖</div>
-            <h2 style='color:white;margin:8px 0 4px;'>{t_val.get('ai_counselor','AI Counselor')}</h2>
-            <p style='color:rgba(255,255,255,0.7);font-size:0.85rem;'>Powered by Gemini 2.0 Flash</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+                <div style="width:48px;height:48px;border-radius:50%;
+                    background:linear-gradient(135deg,#00C897,#0D3B8E);display:flex;
+                    align-items:center;justify-content:center;font-size:24px;">🤖</div>
+                <div><div style="font-size:18px;font-weight:800;color:#fff;">{t_val.get('chat_title','UNI Assistant')}</div>
+                <div style="font-size:12px;color:rgba(255,255,255,0.8);">{t_val.get('chat_sub','')}</div></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
         chat_container = st.container(height=400)
+        if not st.session_state.chat_history:
+            with chat_container.chat_message("assistant"):
+                st.write("👋 " + t_val.get("placeholder", "Ask me anything about Korea..."))
         for msg in st.session_state.chat_history:
             with chat_container.chat_message(msg["role"]):
                 st.write(msg["content"])
-                if "source" in msg:
+                if msg.get("source"):
                     st.caption(f"📍 {msg['source']}")
 
         if prompt := st.chat_input(t_val.get("placeholder", "Ask me anything...")):
             st.session_state.chat_history.append({"role": "user", "content": prompt})
             with st.spinner("..."):
                 ans, source = get_rag_response(prompt)
-            st.session_state.chat_history.append({"role": "assistant", "content": ans, "source": source})
+            st.session_state.chat_history.append(
+                {"role": "assistant", "content": ans, "source": source})
+            try:
+                if supabase is not None:
+                    supabase.table("chat_history").insert({
+                        "question": prompt,
+                        "answer": ans,
+                        "source": source,
+                        "lang": st.session_state.lang,
+                        "created_at": datetime.utcnow().isoformat(),
+                    }).execute()
+            except Exception:
+                pass
             st.rerun()
 
         st.divider()
-        st.markdown(f"#### 🔔 {t_val.get('subscribe','Notifications')}")
-        email = st.text_input(t_val.get("email_label", "Email"), key="notif_email")
-        topics = st.multiselect(t_val.get("topics", "Topics"), ["TOPIK Updates", "Visa News", "Job Alerts", "Scholarship Info"])
-        if st.button(t_val.get("submit", "Subscribe"), key="sub_btn"):
-            if email and topics and supabase:
-                try:
-                    supabase.table("notifications").upsert({"email": email, "topics": topics, "lang": st.session_state.lang, "created_at": datetime.utcnow().isoformat()}).execute()
-                    st.toast(t_val.get("success", "Subscribed!"))
-                except:
-                    st.toast("Subscribed! ✅")
-            else:
-                st.toast("✅ Subscribed!")
 
-# ==========================================
-# ADMIN PANEL
-# ==========================================
+        # ── Email notification subscription ──
+        st.markdown(f"#### 🔔 {t_val.get('subscribe','Get Email Updates')}")
+        email = st.text_input(t_val.get("email_label", "Your email"), key="notif_email")
+        topics = st.multiselect(
+            t_val.get("topics", "Topics of interest"),
+            ["TOPIK Updates", "Visa News", "Job Alerts", "Scholarship Info", "Life Tips"],
+            key="notif_topics",
+        )
+        if st.button(t_val.get("submit", "Submit"), key="sub_btn"):
+            if email and "@" in email and "." in email:
+                try:
+                    if supabase is not None:
+                        supabase.table("notifications").upsert({
+                            "email": email,
+                            "topics": topics,
+                            "lang": st.session_state.lang,
+                            "created_at": datetime.utcnow().isoformat(),
+                        }).execute()
+                    st.success(t_val.get("sub_success", "✅ Subscribed!"))
+                except Exception:
+                    st.success(t_val.get("sub_success", "✅ Subscribed!"))
+            else:
+                st.error(t_val.get("invalid_email", "Please enter a valid email"))
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 18. ADMIN PANEL
+# ════════════════════════════════════════════════════════════════════════════
 def admin_panel():
-    with st.sidebar.expander("⚙️ Admin Panel", expanded=False):
-        pw = st.text_input(t("password"), type="password", key="admin_pw")
-        try:
-            correct_pw = st.secrets.get("ADMIN_PASSWORD", "admin")
-        except:
-            correct_pw = "admin"
-        if pw == correct_pw:
-            st.success("✅ Authorized")
-            a1, a2 = st.tabs([t("upload_pdf"), t("stats")])
-            with a1:
-                files = st.file_uploader(t("upload_pdf"), type=["pdf"], accept_multiple_files=True, key="admin_upload")
-                chunk_size = st.slider("Chunk Size (words)", 100, 800, 400, 50)
-                if files and st.button("🚀 Vectorize & Upload", key="admin_upload_btn"):
-                    import pypdf, io
-                    total = 0
+    with st.sidebar.expander(t("admin_panel")):
+        password = st.text_input(t("admin_pw"), type="password", key="admin_pw_input")
+        if not password:
+            return
+        if password != _secret("ADMIN_PASSWORD", "admin"):
+            st.error("❌ Incorrect password")
+            return
+        st.success(t("admin_ok"))
+
+        tab1, tab2 = st.tabs([t("admin_pdf"), t("admin_stats")])
+
+        # ── PDF upload → vector store ──
+        with tab1:
+            st.info("Upload PDFs to build the AI knowledge base")
+            files = st.file_uploader("Upload PDFs", type=["pdf"],
+                                     accept_multiple_files=True, key="admin_pdfs")
+            chunk_size = st.slider("Chunk Size (words)", 100, 800, 400, 50, key="admin_chunk")
+            overlap = st.slider("Overlap (words)", 0, 200, 50, 10, key="admin_overlap")
+
+            if files and st.button("🚀 Vectorize & Upload", key="admin_vec"):
+                if supabase is None or not AI_READY:
+                    st.error("Supabase / AI not configured. Add secrets first.")
+                else:
+                    import pypdf
+                    total_chunks = 0
                     for f in files:
                         with st.spinner(f"Processing {f.name}..."):
                             try:
                                 reader = pypdf.PdfReader(io.BytesIO(f.read()))
                                 text = "".join([p.extract_text() or "" for p in reader.pages])
                                 words = text.split()
-                                chunks = [" ".join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size-50) if words[i:i+chunk_size]]
-                                prog = st.progress(0, f"Uploading {f.name}...")
+                                step = max(1, chunk_size - overlap)
+                                chunks = [
+                                    " ".join(words[i:i + chunk_size])
+                                    for i in range(0, len(words), step)
+                                    if words[i:i + chunk_size]
+                                ]
+                                progress = st.progress(0, f"Uploading {f.name}...")
                                 for idx, chunk in enumerate(chunks):
-                                    emb = Settings.embed_model.get_text_embedding(chunk)
-                                    supabase.table("documents").insert({"content": chunk, "metadata": {"source": f.name, "chunk": idx}, "embedding": emb}).execute()
-                                    prog.progress((idx+1)/len(chunks), f"Chunk {idx+1}/{len(chunks)}")
-                                    total += 1
+                                    embedding = Settings.embed_model.get_text_embedding(chunk)
+                                    supabase.table("documents").insert({
+                                        "content": chunk,
+                                        "metadata": {"source": f.name, "chunk": idx},
+                                        "embedding": embedding,
+                                    }).execute()
+                                    progress.progress((idx + 1) / len(chunks))
+                                    total_chunks += 1
                                 st.success(f"✅ {f.name} → {len(chunks)} chunks")
                             except Exception as e:
                                 st.error(f"❌ {f.name}: {e}")
-                    if total > 0:
+                    if total_chunks > 0:
                         st.balloons()
-                        st.toast(f"🎉 {total} chunks uploaded!")
-                st.divider()
-                if st.button("📊 View Doc Stats", key="doc_stats"):
-                    try:
-                        res = supabase.table("documents").select("metadata").execute()
-                        if res.data:
-                            sources = {}
-                            for r in res.data:
-                                src = r.get("metadata", {}).get("source", "Unknown")
-                                sources[src] = sources.get(src, 0) + 1
-                            df = pd.DataFrame([{"File": k, "Chunks": v} for k, v in sources.items()])
-                            st.dataframe(df, use_container_width=True)
-                            st.caption(f"Total: {len(res.data)} chunks")
-                    except Exception as e:
-                        st.error(str(e))
+                        st.toast(f"🎉 {total_chunks} chunks uploaded!")
 
-            with a2:
-                st.metric("Total Chat Sessions", len(st.session_state.chat_history) // 2)
-                st.metric("Active Language", st.session_state.lang)
+            if st.button("📊 View Document Stats", key="admin_docstats"):
+                try:
+                    res = supabase.table("documents").select("metadata").execute()
+                    sources = {}
+                    for r in res.data:
+                        src = (r.get("metadata") or {}).get("source", "Unknown")
+                        sources[src] = sources.get(src, 0) + 1
+                    st.dataframe(pd.DataFrame(
+                        [{"File": k, "Chunks": v} for k, v in sources.items()]))
+                except Exception:
+                    st.error("Could not load stats")
 
-# MAIN ROUTER — placed after all function definitions
+        # ── Stats & subscriber export ──
+        with tab2:
+            col1, col2, col3 = st.columns(3)
+            try:
+                chats = supabase.table("chat_history").select("id", count="exact").execute()
+                col1.metric("Total Chats", chats.count or 0)
+            except Exception:
+                col1.metric("Total Chats", "—")
+            try:
+                docs = supabase.table("documents").select("id", count="exact").execute()
+                col2.metric("KB Documents", docs.count or 0)
+            except Exception:
+                col2.metric("KB Documents", "—")
+            try:
+                subs = supabase.table("notifications").select("id", count="exact").execute()
+                col3.metric("Subscribers", subs.count or 0)
+            except Exception:
+                col3.metric("Subscribers", "—")
+
+            col1.metric("Active Language", st.session_state.lang[:6])
+
+            # Subscriber breakdowns
+            try:
+                res = supabase.table("notifications").select("*").execute()
+                if res.data:
+                    df = pd.DataFrame(res.data)
+                    st.markdown("**Breakdown by language**")
+                    if "lang" in df.columns:
+                        st.dataframe(df["lang"].value_counts().rename_axis("Language")
+                                     .reset_index(name="Subscribers"), use_container_width=True)
+                    topic_counts = {}
+                    for tlist in df.get("topics", []):
+                        for tp in (tlist or []):
+                            topic_counts[tp] = topic_counts.get(tp, 0) + 1
+                    if topic_counts:
+                        st.markdown("**Breakdown by topic**")
+                        st.dataframe(pd.DataFrame(
+                            [{"Topic": k, "Subscribers": v} for k, v in topic_counts.items()]),
+                            use_container_width=True)
+                    st.download_button("📥 Export Subscribers CSV",
+                                       df.to_csv(index=False), "subscribers.csv",
+                                       key="admin_export")
+            except Exception:
+                pass
 
 
-# ==========================================
-# USER REGISTRATION & AUTH
-# ==========================================
+# ════════════════════════════════════════════════════════════════════════════
+# 19. AUTH
+# ════════════════════════════════════════════════════════════════════════════
 def render_auth():
+    """Ensure auth-related session keys exist (defensive; init_state already does)."""
     if "user" not in st.session_state:
         st.session_state.user = None
     if "auth_mode" not in st.session_state:
         st.session_state.auth_mode = "login"
 
+
 def page_auth():
-    st.markdown(f'<div class="sec-header"><div class="sec-title">👤 {t("register_title") if st.session_state.auth_mode == "register" else t("login_title")}</div></div>', unsafe_allow_html=True)
-    st.markdown('<div class="content-pad">', unsafe_allow_html=True)
+    section_header(t("auth_welcome"),
+                   t("auth_login_sub") if st.session_state.auth_mode == "login" else t("auth_reg_sub"))
 
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
+    _, mid, _ = st.columns([1, 2, 1])
+    with mid:
         if st.session_state.auth_mode == "register":
-            st.markdown(f"""<div class="g-card">""", unsafe_allow_html=True)
-            name = st.text_input(t("name_label"), placeholder="John Doe")
-            email = st.text_input(t("email_reg"), placeholder="you@email.com")
-            lang_pref = st.selectbox("🌐 Preferred Language", list(TR.keys()))
-            password = st.text_input(t("password_reg"), type="password")
-            confirm = st.text_input(t("confirm_password"), type="password")
-
-            # Notification preferences
-            st.markdown("#### 🔔 " + t("notif_settings"))
-            notif_topik = st.checkbox(t("notif_topik"), value=True)
-            notif_visa = st.checkbox(t("notif_visa"), value=True)
-            notif_jobs = st.checkbox(t("notif_jobs"), value=True)
-            notif_news = st.checkbox(t("notif_news"), value=False)
-
-            if st.button(t("register_btn"), use_container_width=True):
-                if not name or not email or not password:
-                    st.error(t("error"))
-                elif password != confirm:
-                    st.error("Passwords do not match!")
-                else:
-                    try:
-                        topics = []
-                        if notif_topik: topics.append("TOPIK")
-                        if notif_visa: topics.append("VISA")
-                        if notif_jobs: topics.append("JOBS")
-                        if notif_news: topics.append("NEWS")
-
-                        if supabase:
-                            supabase.table("users").insert({
-                                "name": name,
-                                "email": email,
-                                "lang": lang_pref,
-                                "topics": topics,
-                                "created_at": datetime.utcnow().isoformat()
-                            }).execute()
-
-                        st.session_state.user = {"name": name, "email": email, "lang": lang_pref, "topics": topics}
-                        st.session_state.lang = lang_pref
-                        st.success(t("success"))
-                        st.balloons()
-                        st.session_state.page = "HOME"
-                        st.rerun()
-                    except Exception as e:
-                        # Save locally even if DB fails
-                        st.session_state.user = {"name": name, "email": email, "lang": lang_pref, "topics": []}
-                        st.session_state.lang = lang_pref
-                        st.success(t("success"))
-                        st.session_state.page = "HOME"
-                        st.rerun()
-
-            st.markdown("</div>", unsafe_allow_html=True)
-            st.markdown(f"<p style='text-align:center;color:#64748B;'>{t('already_have')} <a href='#' style='color:#0D3B8E;' onclick='void(0)'>{t('login_btn')}</a></p>", unsafe_allow_html=True)
-            if st.button(t("login_title"), key="go_login"):
-                st.session_state.auth_mode = "login"
-                st.rerun()
-
+            _register_form()
         else:
-            st.markdown(f"""<div class="g-card">""", unsafe_allow_html=True)
-            email = st.text_input(t("email_reg"), placeholder="you@email.com")
-            password = st.text_input(t("password_reg"), type="password")
+            _login_form()
 
-            if st.button(t("login_btn"), use_container_width=True):
-                try:
-                    if supabase:
-                        res = supabase.table("users").select("*").eq("email", email).execute()
-                        if res.data:
-                            user = res.data[0]
-                            st.session_state.user = user
-                            st.session_state.lang = user.get("lang", "🇺🇸 English")
-                            st.success(t("success"))
-                            st.session_state.page = "HOME"
-                            st.rerun()
-                        else:
-                            st.error("User not found. Please register first.")
-                    else:
-                        st.session_state.user = {"name": "User", "email": email, "lang": st.session_state.lang}
-                        st.session_state.page = "HOME"
-                        st.rerun()
-                except:
-                    st.session_state.user = {"name": "User", "email": email, "lang": st.session_state.lang}
-                    st.session_state.page = "HOME"
-                    st.rerun()
 
-            st.markdown("</div>", unsafe_allow_html=True)
-            if st.button(t("register_title"), key="go_register"):
-                st.session_state.auth_mode = "register"
-                st.rerun()
+def _register_form():
+    card_open()
+    st.markdown(f"### 📝 {t('register')}")
+    name = st.text_input(t("full_name"), key="reg_name")
+    email = st.text_input(t("email"), key="reg_email")
+    lang_pref = st.selectbox(t("lang_pref"), LANGUAGES,
+                             index=LANGUAGES.index(st.session_state.lang), key="reg_lang")
+    pw = st.text_input(t("password"), type="password", key="reg_pw")
+    pw2 = st.text_input(t("confirm_pw"), type="password", key="reg_pw2")
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown(f"**{t('notif_pref')}**")
+    n_topik = st.checkbox(t("notif_topik"), value=True, key="reg_n_topik")
+    n_visa = st.checkbox(t("notif_visa"), value=True, key="reg_n_visa")
+    n_job = st.checkbox(t("notif_job"), value=True, key="reg_n_job")
+    n_uni = st.checkbox(t("notif_uni"), value=False, key="reg_n_uni")
+    n_schol = st.checkbox(t("notif_scholar"), value=False, key="reg_n_schol")
+
+    if st.button(t("register"), key="reg_submit", use_container_width=True):
+        if not name or not email or not pw:
+            st.error(t("fill_all"))
+        elif "@" not in email or "." not in email:
+            st.error(t("invalid_email"))
+        elif pw != pw2:
+            st.error(t("pw_mismatch"))
+        else:
+            topics = []
+            if n_topik: topics.append("TOPIK Updates")
+            if n_visa: topics.append("Visa News")
+            if n_job: topics.append("Job Alerts")
+            if n_uni: topics.append("University News")
+            if n_schol: topics.append("Scholarship Info")
+            record = {
+                "name": name, "email": email, "lang": lang_pref,
+                "topics": topics, "created_at": datetime.utcnow().isoformat(),
+            }
+            try:
+                if supabase is not None:
+                    supabase.table("users").upsert(record).execute()
+                    # Also seed the notifications table for this subscriber.
+                    supabase.table("notifications").upsert({
+                        "email": email, "topics": topics, "lang": lang_pref,
+                        "created_at": datetime.utcnow().isoformat(),
+                    }).execute()
+            except Exception:
+                pass
+            st.session_state.user = record
+            st.session_state.lang = lang_pref
+            st.success(t("reg_success"))
+            st.balloons()
+            goto("HOME")
+
+    st.write("")
+    if st.button(t("have_account"), key="to_login", use_container_width=True):
+        st.session_state.auth_mode = "login"
+        st.rerun()
+    card_close()
+
+
+def _login_form():
+    card_open()
+    st.markdown(f"### 🔑 {t('login')}")
+    email = st.text_input(t("email"), key="login_email")
+    pw = st.text_input(t("password"), type="password", key="login_pw")
+
+    if st.button(t("login"), key="login_submit", use_container_width=True):
+        if not email:
+            st.error(t("fill_all"))
+        else:
+            user = None
+            try:
+                if supabase is not None:
+                    res = supabase.table("users").select("*").eq("email", email).execute()
+                    if res.data:
+                        user = res.data[0]
+            except Exception:
+                user = None
+            if user:
+                st.session_state.user = user
+                if user.get("lang") in LANGUAGES:
+                    st.session_state.lang = user["lang"]
+                st.success(t("login_success"))
+                goto("HOME")
+            else:
+                st.error(t("login_fail"))
+
+    st.write("")
+    if st.button(t("no_account"), key="to_register", use_container_width=True):
+        st.session_state.auth_mode = "register"
+        st.rerun()
+    card_close()
+
 
 def page_profile():
-    user = st.session_state.get("user")
+    user = st.session_state.user
     if not user:
-        st.session_state.page = "AUTH"
-        st.rerun()
+        st.info("Please sign in first.")
+        if st.button(t("login"), key="profile_login"):
+            goto("AUTH")
         return
 
-    st.markdown(f'<div class="sec-header"><div class="sec-title">👤 {t("my_profile")}</div></div>', unsafe_allow_html=True)
-    st.markdown('<div class="content-pad">', unsafe_allow_html=True)
+    section_header(t("my_profile"))
+    card_open()
+    st.markdown(
+        f"""
+        <div style="display:flex;align-items:center;gap:18px;">
+            <div style="width:70px;height:70px;border-radius:50%;
+                background:linear-gradient(135deg,#0D3B8E,#00C897);display:flex;
+                align-items:center;justify-content:center;font-size:32px;color:#fff;">👤</div>
+            <div><h3 style="margin:0;">{user.get('name','Student')}</h3>
+            <p style="margin:4px 0;color:var(--muted);">✉️ {user.get('email','')}</p>
+            <p style="margin:0;color:var(--muted);">🌐 {user.get('lang','')}</p></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    card_close()
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(f"""
-        <div class="g-card">
-            <h3>👤 {user.get('name','')}</h3>
-            <p>✉️ {user.get('email','')}</p>
-            <p>🌐 {user.get('lang','')}</p>
-        </div>""", unsafe_allow_html=True)
+    divider()
+    st.markdown(f"#### 🔔 {t('edit_notif')}")
+    existing = user.get("topics", []) or []
+    n_topik = st.checkbox(t("notif_topik"), value="TOPIK Updates" in existing, key="p_topik")
+    n_visa = st.checkbox(t("notif_visa"), value="Visa News" in existing, key="p_visa")
+    n_job = st.checkbox(t("notif_job"), value="Job Alerts" in existing, key="p_job")
+    n_uni = st.checkbox(t("notif_uni"), value="University News" in existing, key="p_uni")
+    n_schol = st.checkbox(t("notif_scholar"), value="Scholarship Info" in existing, key="p_schol")
+    if st.button(t("save"), key="profile_save"):
+        topics = []
+        if n_topik: topics.append("TOPIK Updates")
+        if n_visa: topics.append("Visa News")
+        if n_job: topics.append("Job Alerts")
+        if n_uni: topics.append("University News")
+        if n_schol: topics.append("Scholarship Info")
+        st.session_state.user["topics"] = topics
+        try:
+            if supabase is not None:
+                supabase.table("users").update({"topics": topics}).eq(
+                    "email", user.get("email")).execute()
+        except Exception:
+            pass
+        st.success(t("profile_saved"))
 
-        st.markdown(f"#### 🔔 {t('notif_settings')}")
-        topics = user.get("topics", [])
-        n1 = st.checkbox(t("notif_topik"), value="TOPIK" in topics)
-        n2 = st.checkbox(t("notif_visa"), value="VISA" in topics)
-        n3 = st.checkbox(t("notif_jobs"), value="JOBS" in topics)
-        n4 = st.checkbox(t("notif_news"), value="NEWS" in topics)
-        st.info(t("notif_lang"))
+    divider()
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown(f"#### {t('saved_uni')}")
+        st.markdown(f'<div class="glass-note">{t("none_yet")}</div>', unsafe_allow_html=True)
+    with c2:
+        st.markdown(f"#### {t('saved_jobs')}")
+        st.markdown(f'<div class="glass-note">{t("none_yet")}</div>', unsafe_allow_html=True)
 
-        if st.button("💾 Save", use_container_width=True):
-            new_topics = []
-            if n1: new_topics.append("TOPIK")
-            if n2: new_topics.append("VISA")
-            if n3: new_topics.append("JOBS")
-            if n4: new_topics.append("NEWS")
-            st.session_state.user["topics"] = new_topics
-            st.success(t("success"))
-
-    with col2:
-        st.markdown(f"#### 🎓 {t('saved_unis')}")
-        st.info("Bookmark universities by clicking ⭐ on university cards")
-        st.markdown(f"#### 💼 {t('saved_jobs')}")
-        st.info("Bookmark jobs by clicking ❤️ on job cards")
-
-    if st.button(t("logout_btn"), type="secondary"):
+    divider()
+    if st.button(f"🚪 {t('logout')}", key="profile_logout", type="primary"):
         st.session_state.user = None
-        st.session_state.page = "HOME"
-        st.rerun()
+        st.session_state.chat_history = []
+        goto("HOME")
 
-    st.markdown('</div>', unsafe_allow_html=True)
 
-# ==========================================
-# MAIN ROUTER
-# ==========================================
+# ════════════════════════════════════════════════════════════════════════════
+# 20. MAIN ROUTER
+# ════════════════════════════════════════════════════════════════════════════
 render_nav()
 render_auth()
 
-page = st.session_state.page
-if page == "HOME": page_home()
-elif page == "UNIVERSITY": page_university()
-elif page == "CAREER": page_career()
-elif page == "JOB": page_job()
-elif page == "TOPIK": page_topik()
-elif page == "VISA": page_visa()
-elif page == "AUTH": page_auth()
-elif page == "PROFILE": page_profile()
+_page = st.session_state.page
+if _page == "HOME":
+    page_home()
+elif _page == "UNIVERSITY":
+    page_university()
+elif _page == "CAREER":
+    page_career()
+elif _page == "JOB":
+    page_job()
+elif _page == "TOPIK":
+    page_topik()
+elif _page == "VISA":
+    page_visa()
+elif _page == "LIFE":
+    page_life()
+elif _page == "AUTH":
+    page_auth()
+elif _page == "PROFILE":
+    page_profile()
+else:
+    page_home()
 
 floating_chat()
 admin_panel()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# requirements.txt
+# ────────────────────────────────────────────────────────────────────────────
+# streamlit>=1.40.0
+# llama-index-core>=0.10.68
+# llama-index-llms-google-genai>=0.3.0
+# llama-index-embeddings-google-genai>=0.3.0
+# llama-index-vector-stores-supabase>=0.3.0
+# supabase>=2.10.0
+# google-generativeai>=0.7.0
+# pandas>=2.2.1
+# plotly>=5.19.0
+# pypdf>=4.1.0
+# python-dotenv>=1.0.1
+# requests>=2.31.0
+# ════════════════════════════════════════════════════════════════════════════
+
+
+
+
+
+
+
+
+
