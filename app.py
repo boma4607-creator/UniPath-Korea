@@ -52,7 +52,7 @@ st.set_page_config(
     page_title="UniPath Korea — AI Guide for International Students",
     page_icon="🎓",
     layout="wide",
-    initial_sidebar_state="expanded",   # was "collapsed",
+    initial_sidebar_state="expanded",
 )
 
 
@@ -1079,7 +1079,21 @@ HEADER_CSS = """
 }
 
 /* Kill Streamlit's large default top padding so the header sits at the top */
-header[data-testid="stHeader"] { display: none !important; height: 0 !important; }
+header[data-testid="stHeader"] { visibility: hidden !important; height: 0 !important; }
+/* Keep the sidebar open/close toggle usable as a floating button */
+header[data-testid="stHeader"] [data-testid="collapsedControl"] {
+    visibility: visible !important;
+    position: fixed !important;
+    top: 14px !important;
+    left: 14px !important;
+    z-index: 999999 !important;
+    background: var(--navy) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 12px rgba(13,59,142,0.35) !important;
+}
+header[data-testid="stHeader"] [data-testid="collapsedControl"] svg {
+    fill: #FFFFFF !important;
+}
 [data-testid="stMainBlockContainer"],
 [data-testid="stAppViewContainer"] .block-container,
 .stMainBlockContainer, .block-container {
@@ -1495,6 +1509,7 @@ TR = {
         "edit_notif": "Мэдэгдлийн тохиргоо засах", "profile_saved": "Тохиргоо хадгалагдлаа!",
         "none_yet": "Одоогоор хадгалсан зүйл алга.",
         "chat_title": "UNI Туслах", "chat_sub": "Солонгос дахь амьдралын талаар юу ч асуу",
+        "chat_greeting": "Сайн уу! Би UNI — Солонгост суралцах, амьдрах, ажиллахыг хүссэн хүмүүст туслах AI гид. Виза, TOPIK, их сургууль, ажил, өдөр тутмын амьдрал — юу ч асуу!",
         "placeholder": "Солонгосын талаар юу ч асуу...", "ask_ai": "💬 AI Туслахаас асуух",
         "subscribe": "Имэйл шинэчлэл авах", "email_label": "Таны имэйл", "topics": "Сонирхсон сэдэв",
         "sub_success": "✅ Бүртгэгдлээ! Таны хэл дээр мэдээ илгээнэ.",
@@ -3921,11 +3936,17 @@ def floating_chat():
         st.markdown(
             f"""
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
-                <div style="width:48px;height:48px;border-radius:50%;
+                <div style="width:56px;height:56px;border-radius:50%;
                     background:linear-gradient(135deg,#3D5AFE,#16233F);display:flex;
-                    align-items:center;justify-content:center;font-size:24px;">🤖</div>
-                <div><div style="font-size:18px;font-weight:800;color:#fff;">{t_val.get('chat_title','UNI Assistant')}</div>
-                <div style="font-size:12px;color:rgba(255,255,255,0.8);">{t_val.get('chat_sub','')}</div></div>
+                    align-items:center;justify-content:center;font-size:28px;
+                    box-shadow:0 4px 14px rgba(61,90,254,0.45);">🎓</div>
+                <div>
+                    <div style="font-size:19px;font-weight:800;color:#fff;">UNI</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.7);display:flex;align-items:center;gap:5px;">
+                        <span style="width:7px;height:7px;border-radius:50%;background:#06C684;display:inline-block;"></span>
+                        {t_val.get('chat_sub','AI Guide · Always online')}
+                    </div>
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -3933,10 +3954,14 @@ def floating_chat():
 
         chat_container = st.container(height=400)
         if not st.session_state.chat_history:
-            with chat_container.chat_message("assistant"):
-                st.write("👋 " + t_val.get("placeholder", "Ask me anything about Korea..."))
+            with chat_container.chat_message("assistant", avatar="🎓"):
+                st.markdown(f"**Hi, I'm UNI!** 👋")
+                st.write(t_val.get("chat_greeting",
+                    "I'm your AI guide for studying, living and working in Korea. "
+                    "Ask me anything — visas, TOPIK, universities, jobs, or daily life!"))
         for msg in st.session_state.chat_history:
-            with chat_container.chat_message(msg["role"]):
+            avatar = "🎓" if msg["role"] == "assistant" else None
+            with chat_container.chat_message(msg["role"], avatar=avatar):
                 st.write(msg["content"])
                 if msg.get("source"):
                     st.caption(f"📍 {msg['source']}")
@@ -4369,6 +4394,23 @@ render_footer()
 floating_chat()
 admin_panel()
 
+
+# ════════════════════════════════════════════════════════════════════════════
+# requirements.txt
+# ────────────────────────────────────────────────────────────────────────────
+# streamlit>=1.40.0
+# llama-index-core>=0.10.68
+# llama-index-llms-google-genai>=0.3.0
+# llama-index-embeddings-google-genai>=0.3.0
+# llama-index-vector-stores-supabase>=0.3.0
+# supabase>=2.10.0
+# google-generativeai>=0.7.0
+# pandas>=2.2.1
+# plotly>=5.19.0
+# pypdf>=4.1.0
+# python-dotenv>=1.0.1
+# requests>=2.31.0
+# ════════════════════════════════════════════════════════════════════════════
 
 
 
