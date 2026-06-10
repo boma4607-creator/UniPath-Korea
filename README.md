@@ -13,8 +13,8 @@
 
 | 항목 | 링크 |
 |------|------|
-| 🌐 배포 사이트 (Streamlit Cloud) | `https://<your-app>.streamlit.app` |
-| 💻 GitHub Repository | `https://github.com/<you>/unipath-korea` |
+| 🌐 배포 사이트 (Streamlit Cloud) | `https://unipath-korea-4digmjaruvzrleyhft2ydi.streamlit.app/` |
+| 💻 GitHub Repository | `https://github.com/boma4607-creator/UniPath-Korea/tree/main` |
 | 🤖 AI 프롬프트 대화 내역 | `https://...` (로그인 없이 열람 가능) |
 
 ---
@@ -99,11 +99,11 @@ streamlit run app.py
 
 ### Secrets (`.streamlit/secrets.toml`)
 ```toml
-GEMINI_API_KEY = "..."
-SUPABASE_URL = "https://xxxx.supabase.co"
-SUPABASE_KEY = "..."
-SUPABASE_DB_CONNECTION = "postgresql://...:6543/postgres"
-ADMIN_PASSWORD = "..."
+GEMINI_API_KEY = "....."
+SUPABASE_URL = "...."
+SUPABASE_KEY = "...."
+SUPABASE_DB_CONNECTION = "...."
+ADMIN_PASSWORD = "unipath-admin-2026"
 ```
 
 ## ☁️ Streamlit Community Cloud 배포
