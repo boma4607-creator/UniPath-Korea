@@ -15,7 +15,7 @@
 |------|------|
 | 🌐 배포 사이트 (Streamlit Cloud) | `https://unipath-korea-4digmjaruvzrleyhft2ydi.streamlit.app/` |
 | 💻 GitHub Repository | `https://github.com/boma4607-creator/UniPath-Korea/tree/main` |
-| 🤖 AI 프롬프트 대화 내역 | `https://...` (로그인 없이 열람 가능) |
+| 🤖 AI 프롬프트 대화 내역 | `https://claude.ai/share/15655fd5-e198-4e53-af7c-af6e1e7a5af5`,'https://claude.ai/share/15655fd5-e198-4e53-af7c-af6e1e7a5af5' (로그인 없이 열람 가능) |
 
 ---
 
