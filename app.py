@@ -52,7 +52,7 @@ st.set_page_config(
     page_title="UniPath Korea — AI Guide for International Students",
     page_icon="🎓",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",   # was "collapsed",
 )
 
 
